@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Search, Plus, ArrowUpCircle, ArrowDownCircle, Star, Loader2 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import ItemThumb from "@/components/ItemThumb";
@@ -21,6 +22,7 @@ export default function InventoryPage() {
 }
 
 function InventoryPageInner() {
+  const router = useRouter();
   const { supabase, activeShopId, showToast } = useShop();
   const [items, setItems] = useState([]);
   const [bills, setBills] = useState([]);
@@ -29,6 +31,16 @@ function InventoryPageInner() {
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [adjustItem, setAdjustItem] = useState(null);
+
+  // Supports a "?add=1" deep link (e.g. from the dashboard's empty-stock
+  // state) that jumps straight into the add-item flow.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("add") === "1") {
+      setShowAdd(true);
+      router.replace("/inventory");
+    }
+  }, [router]);
 
   const load = useCallback(async () => {
     if (!activeShopId) return;

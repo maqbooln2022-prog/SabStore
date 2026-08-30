@@ -247,6 +247,10 @@ export default function DashboardPage() {
             setDetail(null);
             router.push("/inventory");
           }}
+          onAddItems={() => {
+            setDetail(null);
+            router.push("/inventory?add=1");
+          }}
         />
       )}
       {customerDetail && <CustomerDetailModal customer={customerDetail} bills={bills} onClose={() => setCustomerDetail(null)} />}

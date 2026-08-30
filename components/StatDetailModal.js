@@ -3,7 +3,7 @@
 import Modal from "@/components/ui/Modal";
 import { rupee } from "@/lib/format";
 
-export default function StatDetailModal({ mode, items, todaysBills, stockValue, onClose, onGoInventory }) {
+export default function StatDetailModal({ mode, items, todaysBills, stockValue, onClose, onGoInventory, onAddItems }) {
   const titles = { items: "Items in stock", value: "Stock value breakdown", low: "Low stock items", profit: "Today's profit breakdown" };
   let rows = items;
   if (mode === "low") rows = items.filter((i) => i.stock <= i.low_at);
@@ -60,7 +60,16 @@ export default function StatDetailModal({ mode, items, todaysBills, stockValue, 
           </div>
         ) : (
           <div className="max-h-80 overflow-y-auto ks-scroll space-y-2.5 pr-1">
-            {rows.length === 0 && <p className="text-sm text-[#6B7280] text-center py-6">Nothing to show here. 🎉</p>}
+            {rows.length === 0 && (
+              <div className="text-center py-6 space-y-3">
+                <p className="text-sm text-[#6B7280]">Nothing to show here. 🎉</p>
+                {(mode === "items" || mode === "value") && (
+                  <button onClick={onAddItems} className="ks-btn-primary">
+                    Add items
+                  </button>
+                )}
+              </div>
+            )}
             {rows.map((i) => (
               <div key={i.id} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2 min-w-0">
