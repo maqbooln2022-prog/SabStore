@@ -1,0 +1,91 @@
+"use client";
+
+import Modal from "@/components/ui/Modal";
+import { rupee } from "@/lib/format";
+
+export default function StatDetailModal({ mode, items, todaysBills, stockValue, onClose, onGoInventory }) {
+  const titles = { items: "Items in stock", value: "Stock value breakdown", low: "Low stock items", profit: "Today's profit breakdown" };
+  let rows = items;
+  if (mode === "low") rows = items.filter((i) => i.stock <= i.low_at);
+  if (mode === "value") rows = [...items].sort((a, b) => b.stock * b.price - a.stock * a.price);
+
+  let profitRows = [];
+  let totalProfit = 0;
+  if (mode === "profit") {
+    const map = new Map();
+    (todaysBills || []).forEach((b) =>
+      (b.items || []).forEach((line) => {
+        const item = items.find((i) => i.id === line.item_id);
+        const cost = item ? item.cost_price ?? 0 : 0;
+        const profit = (line.price - cost) * line.qty;
+        const cur = map.get(line.item_id) || { name: line.name, code: line.code, profit: 0 };
+        cur.profit += profit;
+        map.set(line.item_id, cur);
+      })
+    );
+    profitRows = [...map.values()].sort((a, b) => b.profit - a.profit);
+    totalProfit = profitRows.reduce((s, r) => s + r.profit, 0);
+  }
+
+  return (
+    <Modal title={titles[mode]} onClose={onClose}>
+      <div className="space-y-3">
+        {mode === "value" && (
+          <div className="flex items-center justify-between pb-2 border-b border-[#E7E9F3]">
+            <span className="text-sm font-semibold text-[#6B7280]">Total stock value</span>
+            <span className="ks-mono text-lg font-bold text-[#4F46E5]">{rupee(stockValue)}</span>
+          </div>
+        )}
+        {mode === "profit" && (
+          <div className="flex items-center justify-between pb-2 border-b border-[#E7E9F3]">
+            <span className="text-sm font-semibold text-[#6B7280]">Total profit today</span>
+            <span className="ks-mono text-lg font-bold text-[#4F46E5]">{rupee(totalProfit)}</span>
+          </div>
+        )}
+
+        {mode === "profit" ? (
+          <div className="max-h-80 overflow-y-auto ks-scroll space-y-2.5 pr-1">
+            {profitRows.length === 0 && <p className="text-sm text-[#6B7280] text-center py-6">No sales yet today.</p>}
+            {profitRows.map((r) => (
+              <div key={r.name} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="ks-mono text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ background: "#E7E9F3", color: "#6B7280" }}>
+                    {r.code}
+                  </span>
+                  <span className="font-medium truncate">{r.name}</span>
+                </div>
+                <span className="ks-mono font-semibold shrink-0 ml-2 text-[#4F46E5]">{rupee(r.profit)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="max-h-80 overflow-y-auto ks-scroll space-y-2.5 pr-1">
+            {rows.length === 0 && <p className="text-sm text-[#6B7280] text-center py-6">Nothing to show here. 🎉</p>}
+            {rows.map((i) => (
+              <div key={i.id} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="ks-mono text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ background: "#E7E9F3", color: "#6B7280" }}>
+                    {i.code}
+                  </span>
+                  <span className="font-medium truncate">{i.name}</span>
+                </div>
+                {mode === "value" ? (
+                  <span className="ks-mono font-semibold shrink-0 ml-2">{rupee(i.stock * i.price)}</span>
+                ) : (
+                  <span className={`ks-mono font-semibold shrink-0 ml-2 ${i.stock <= i.low_at ? "text-[#C13F45]" : "text-[#000000]"}`}>
+                    {i.stock} {i.unit}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {mode === "low" && rows.length > 0 && (
+          <button onClick={onGoInventory} className="ks-btn-primary w-full mt-1">
+            Go to Inventory to restock
+          </button>
+        )}
+      </div>
+    </Modal>
+  );
+}
