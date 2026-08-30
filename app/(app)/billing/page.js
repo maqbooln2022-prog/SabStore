@@ -22,6 +22,7 @@ import PrintBillContent from "@/components/PrintBillContent";
 import { rupee } from "@/lib/format";
 import { whatsappLink, billMessageText, taxBreakup } from "@/lib/messaging";
 import { parseSpokenQuantity, matchItemFromSpeech } from "@/lib/voiceHelpers";
+import { fetchShopItems } from "@/lib/products";
 
 export default function BillingPage() {
   const { supabase, activeShopId, activeShop, showToast } = useShop();
@@ -47,11 +48,11 @@ export default function BillingPage() {
   const load = useCallback(async () => {
     if (!activeShopId) return;
     setLoading(true);
-    const [{ data: itemsData }, { data: billsData }] = await Promise.all([
-      supabase.from("items").select("*").eq("shop_id", activeShopId).order("code"),
+    const [itemsData, { data: billsData }] = await Promise.all([
+      fetchShopItems(supabase, activeShopId),
       supabase.from("bills").select("*").eq("shop_id", activeShopId).order("date", { ascending: false }),
     ]);
-    setItems(itemsData || []);
+    setItems(itemsData);
     setBills(billsData || []);
     setLoading(false);
   }, [supabase, activeShopId]);
@@ -127,30 +128,30 @@ export default function BillingPage() {
   function addToCart(item, qty = 1) {
     if (item.stock <= 0) return showToast(`${item.name} is out of stock`, "err");
     setCart((prev) => {
-      const exists = prev.find((c) => c.item_id === item.id);
+      const exists = prev.find((c) => c.shop_product_id === item.id);
       const wanted = (exists ? exists.qty : 0) + qty;
       if (wanted > item.stock) {
         showToast(`Only ${item.stock} ${item.unit} of ${item.name} in stock`, "warn");
         const capped = item.stock;
         return exists
-          ? prev.map((c) => (c.item_id === item.id ? { ...c, qty: capped } : c))
-          : [...prev, { item_id: item.id, code: item.code, name: item.name, price: item.price, unit: item.unit, gst: item.gst, qty: capped, stock: item.stock }];
+          ? prev.map((c) => (c.shop_product_id === item.id ? { ...c, qty: capped } : c))
+          : [...prev, { shop_product_id: item.id, code: item.code, name: item.name, price: item.price, unit: item.unit, gst: item.gst, qty: capped, stock: item.stock }];
       }
-      if (exists) return prev.map((c) => (c.item_id === item.id ? { ...c, qty: wanted } : c));
-      return [...prev, { item_id: item.id, code: item.code, name: item.name, price: item.price, unit: item.unit, gst: item.gst, qty, stock: item.stock }];
+      if (exists) return prev.map((c) => (c.shop_product_id === item.id ? { ...c, qty: wanted } : c));
+      return [...prev, { shop_product_id: item.id, code: item.code, name: item.name, price: item.price, unit: item.unit, gst: item.gst, qty, stock: item.stock }];
     });
     setQuery("");
   }
 
   function updateQty(id, qty) {
-    const line = cart.find((c) => c.item_id === id);
+    const line = cart.find((c) => c.shop_product_id === id);
     if (!line) return;
     if (qty > line.stock) {
       showToast(`Only ${line.stock} ${line.unit} in stock`, "warn");
       qty = line.stock;
     }
-    if (qty <= 0) setCart((prev) => prev.filter((c) => c.item_id !== id));
-    else setCart((prev) => prev.map((c) => (c.item_id === id ? { ...c, qty } : c)));
+    if (qty <= 0) setCart((prev) => prev.filter((c) => c.shop_product_id !== id));
+    else setCart((prev) => prev.map((c) => (c.shop_product_id === id ? { ...c, qty } : c)));
   }
 
   const subtotal = cart.reduce((s, c) => s + c.qty * c.price, 0);
@@ -164,7 +165,7 @@ export default function BillingPage() {
     setGenerating(true);
     try {
       const billNo = `KS-${1000 + bills.length + 1}`;
-      const billItems = cart.map(({ item_id, code, name, price, unit, gst, qty }) => ({ item_id, code, name, price, unit, gst, qty }));
+      const billItems = cart.map(({ shop_product_id, code, name, price, unit, gst, qty }) => ({ shop_product_id, code, name, price, unit, gst, qty }));
 
       const { data: bill, error: billError } = await supabase
         .from("bills")
@@ -184,12 +185,12 @@ export default function BillingPage() {
       if (billError) throw billError;
 
       for (const line of cart) {
-        const current = items.find((p) => p.id === line.item_id);
+        const current = items.find((p) => p.id === line.shop_product_id);
         if (!current) continue;
         const { error: stockError } = await supabase
-          .from("items")
+          .from("shop_products")
           .update({ stock: Math.max(0, current.stock - line.qty) })
-          .eq("id", line.item_id);
+          .eq("id", line.shop_product_id);
         if (stockError) throw stockError;
       }
 
@@ -210,7 +211,7 @@ export default function BillingPage() {
 
       setItems((prev) =>
         prev.map((p) => {
-          const line = cart.find((c) => c.item_id === p.id);
+          const line = cart.find((c) => c.shop_product_id === p.id);
           return line ? { ...p, stock: Math.max(0, p.stock - line.qty) } : p;
         })
       );
@@ -390,7 +391,7 @@ export default function BillingPage() {
             <table className="w-full text-sm">
               <tbody>
                 {cart.map((c) => (
-                  <tr key={c.item_id} className="border-b border-[#E7E9F3] last:border-0">
+                  <tr key={c.shop_product_id} className="border-b border-[#E7E9F3] last:border-0">
                     <td className="px-5 py-3 font-medium">
                       <span className="ks-mono text-[10px] font-bold px-1.5 py-0.5 rounded mr-1.5" style={{ background: "#E7E9F3", color: "#6B7280" }}>
                         {c.code}
@@ -400,11 +401,11 @@ export default function BillingPage() {
                     <td className="px-2 py-3 ks-mono text-[#6B7280]">{rupee(c.price)}</td>
                     <td className="px-2 py-3">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => updateQty(c.item_id, c.qty - 1)} className="ks-qtybtn">
+                        <button onClick={() => updateQty(c.shop_product_id, c.qty - 1)} className="ks-qtybtn">
                           <Minus size={13} />
                         </button>
                         <span className="ks-mono w-7 text-center font-semibold">{c.qty}</span>
-                        <button onClick={() => updateQty(c.item_id, c.qty + 1)} className="ks-qtybtn">
+                        <button onClick={() => updateQty(c.shop_product_id, c.qty + 1)} className="ks-qtybtn">
                           <Plus size={13} />
                         </button>
                       </div>

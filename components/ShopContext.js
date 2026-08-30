@@ -56,9 +56,30 @@ export function ShopProvider({ children }) {
       .single();
     if (error) throw error;
 
-    const seedRows = seedItemsForShop(type).map((it) => ({ ...it, shop_id: shop.id }));
-    if (seedRows.length > 0) {
-      const { error: seedError } = await supabase.from("items").insert(seedRows);
+    const seedItems = seedItemsForShop(type);
+    if (seedItems.length > 0) {
+      // Seed items split across the owner-level `products` catalog and this
+      // shop's `shop_products` price/stock instance of each — see
+      // PROJECT_BRIEF.md's shared-catalog note.
+      const productRows = seedItems.map(({ code, price, cost_price, gst, stock, low_at, quick, ...product }) => ({
+        ...product,
+        owner_id: user.id,
+      }));
+      const { data: products, error: productError } = await supabase.from("products").insert(productRows).select();
+      if (productError) throw productError;
+
+      const shopProductRows = seedItems.map((it, i) => ({
+        shop_id: shop.id,
+        product_id: products[i].id,
+        code: it.code,
+        price: it.price,
+        cost_price: it.cost_price,
+        gst: it.gst,
+        stock: it.stock,
+        low_at: it.low_at,
+        quick: it.quick,
+      }));
+      const { error: seedError } = await supabase.from("shop_products").insert(shopProductRows);
       if (seedError) throw seedError;
     }
 

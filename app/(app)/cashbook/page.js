@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import { rupee } from "@/lib/format";
+import { fetchShopItems } from "@/lib/products";
 
 export default function CashbookPage() {
   const { supabase, activeShopId } = useShop();
@@ -19,21 +20,21 @@ export default function CashbookPage() {
   const load = useCallback(async () => {
     if (!activeShopId) return;
     setLoading(true);
-    const [{ data: billsData }, { data: drawsData }, { data: expensesData }, { data: creditsData }, { data: movesData }, { data: itemsData }] =
+    const [{ data: billsData }, { data: drawsData }, { data: expensesData }, { data: creditsData }, { data: movesData }, itemsData] =
       await Promise.all([
         supabase.from("bills").select("*").eq("shop_id", activeShopId),
         supabase.from("draws").select("*").eq("shop_id", activeShopId),
         supabase.from("expenses").select("*").eq("shop_id", activeShopId),
         supabase.from("credits").select("*").eq("shop_id", activeShopId),
         supabase.from("movements").select("*").eq("shop_id", activeShopId),
-        supabase.from("items").select("*").eq("shop_id", activeShopId),
+        fetchShopItems(supabase, activeShopId, { orderByCode: false }),
       ]);
     setBills(billsData || []);
     setDraws(drawsData || []);
     setExpenses(expensesData || []);
     setCredits(creditsData || []);
     setMovements(movesData || []);
-    setItems(itemsData || []);
+    setItems(itemsData);
     setLoading(false);
   }, [supabase, activeShopId]);
 

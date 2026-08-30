@@ -52,7 +52,7 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
     if (!activeShopId) return;
     let active = true;
     supabase
-      .from("items")
+      .from("shop_products")
       .select("stock, low_at")
       .eq("shop_id", activeShopId)
       .then(({ data }) => {

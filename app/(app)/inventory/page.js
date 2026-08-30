@@ -9,6 +9,7 @@ import AddItemModal from "@/components/AddItemModal";
 import AdjustStockModal from "@/components/AdjustStockModal";
 import { reorderSuggestion } from "@/lib/inventoryHelpers";
 import { rupee } from "@/lib/format";
+import { fetchShopItems, flattenShopProduct } from "@/lib/products";
 
 export default function InventoryPage() {
   const { supabase, activeShopId, showToast } = useShop();
@@ -23,14 +24,14 @@ export default function InventoryPage() {
   const load = useCallback(async () => {
     if (!activeShopId) return;
     setLoading(true);
-    const [{ data: itemsData }, { data: billsData }, { data: suppliersData }] = await Promise.all([
-      supabase.from("items").select("*").eq("shop_id", activeShopId).order("code"),
+    const [itemsData, { data: billsData }, { data: shopSuppliersData }] = await Promise.all([
+      fetchShopItems(supabase, activeShopId),
       supabase.from("bills").select("items, date").eq("shop_id", activeShopId),
-      supabase.from("suppliers").select("*").eq("shop_id", activeShopId),
+      supabase.from("shop_suppliers").select("supplier:suppliers(*)").eq("shop_id", activeShopId),
     ]);
-    setItems(itemsData || []);
+    setItems(itemsData);
     setBills(billsData || []);
-    setSuppliers(suppliersData || []);
+    setSuppliers((shopSuppliersData || []).map((r) => r.supplier));
     setLoading(false);
   }, [supabase, activeShopId]);
 
@@ -43,35 +44,58 @@ export default function InventoryPage() {
   );
 
   async function addItem(newItem) {
-    const { data, error } = await supabase.from("items").insert({ ...newItem, shop_id: activeShopId }).select().single();
-    if (error) throw error;
-    setItems((prev) => [...prev, data].sort((a, b) => a.code.localeCompare(b.code)));
+    const { code, price, cost_price, gst, stock, low_at, ...productFields } = newItem;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { data: product, error: productError } = await supabase
+      .from("products")
+      .insert({ ...productFields, owner_id: user.id })
+      .select()
+      .single();
+    if (productError) throw productError;
+
+    const { data: shopProduct, error: spError } = await supabase
+      .from("shop_products")
+      .insert({ shop_id: activeShopId, product_id: product.id, code, price, cost_price, gst, stock, low_at })
+      .select()
+      .single();
+    if (spError) throw spError;
+
+    const merged = flattenShopProduct({ ...shopProduct, product });
+    setItems((prev) => [...prev, merged].sort((a, b) => a.code.localeCompare(b.code)));
     setShowAdd(false);
-    showToast(`${data.name} added to inventory`);
+    showToast(`${merged.name} added to inventory`);
   }
 
   async function toggleQuick(item) {
-    const { data, error } = await supabase.from("items").update({ quick: !item.quick }).eq("id", item.id).select().single();
+    const { data, error } = await supabase
+      .from("shop_products")
+      .update({ quick: !item.quick })
+      .eq("id", item.id)
+      .select("*, product:products(*)")
+      .single();
     if (error) {
       showToast(error.message, "err");
       return;
     }
-    setItems((prev) => prev.map((p) => (p.id === item.id ? data : p)));
+    const merged = flattenShopProduct(data);
+    setItems((prev) => prev.map((p) => (p.id === item.id ? merged : p)));
   }
 
   async function logMovement(item, type, qty, reason, supplier) {
     const newStock = type === "in" ? Number(item.stock) + qty : Math.max(0, Number(item.stock) - qty);
-    const { data: updatedItem, error: updateError } = await supabase
-      .from("items")
+    const { data: updated, error: updateError } = await supabase
+      .from("shop_products")
       .update({ stock: newStock })
       .eq("id", item.id)
-      .select()
+      .select("*, product:products(*)")
       .single();
     if (updateError) throw updateError;
 
     const { error: moveError } = await supabase.from("movements").insert({
       shop_id: activeShopId,
-      item_id: item.id,
+      shop_product_id: item.id,
       item_name: item.name,
       type,
       qty,
@@ -80,7 +104,8 @@ export default function InventoryPage() {
     });
     if (moveError) throw moveError;
 
-    setItems((prev) => prev.map((p) => (p.id === item.id ? updatedItem : p)));
+    const merged = flattenShopProduct(updated);
+    setItems((prev) => prev.map((p) => (p.id === item.id ? merged : p)));
     setAdjustItem(null);
     showToast(`${type === "in" ? "Stock added" : "Stock removed"}: ${item.name}`);
   }

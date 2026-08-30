@@ -19,6 +19,7 @@ import StatDetailModal from "@/components/StatDetailModal";
 import CustomerDetailModal from "@/components/CustomerDetailModal";
 import { rupee } from "@/lib/format";
 import { customerBalance, topCustomers } from "@/lib/dashboardHelpers";
+import { fetchShopItems } from "@/lib/products";
 
 export default function DashboardPage() {
   const { supabase, activeShopId, activeShop } = useShop();
@@ -34,13 +35,13 @@ export default function DashboardPage() {
   const load = useCallback(async () => {
     if (!activeShopId) return;
     setLoading(true);
-    const [{ data: itemsData }, { data: billsData }, { data: movesData }, { data: creditsData }] = await Promise.all([
-      supabase.from("items").select("*").eq("shop_id", activeShopId),
+    const [itemsData, { data: billsData }, { data: movesData }, { data: creditsData }] = await Promise.all([
+      fetchShopItems(supabase, activeShopId, { orderByCode: false }),
       supabase.from("bills").select("*").eq("shop_id", activeShopId).order("date", { ascending: false }),
       supabase.from("movements").select("*").eq("shop_id", activeShopId).order("date", { ascending: false }).limit(6),
       supabase.from("credits").select("*").eq("shop_id", activeShopId),
     ]);
-    setItems(itemsData || []);
+    setItems(itemsData);
     setBills(billsData || []);
     setMovements(movesData || []);
     setCredits(creditsData || []);
@@ -63,7 +64,7 @@ export default function DashboardPage() {
   const todaysProfit = useMemo(() => {
     return todaysBills.reduce((sum, b) => {
       const billProfit = (b.items || []).reduce((s, line) => {
-        const current = items.find((i) => i.id === line.item_id);
+        const current = items.find((i) => i.id === line.shop_product_id);
         const cost = current ? current.cost_price ?? 0 : 0;
         return s + (line.price - cost) * line.qty;
       }, 0);

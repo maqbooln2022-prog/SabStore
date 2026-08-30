@@ -2,7 +2,9 @@
 // entry) for a shop, so Dashboard/History/Udhaar aren't empty while those
 // pages are being built. Ported from seedBillsForShop in
 // reference/kirana-store-app.jsx, adapted to the real `bills`/`credits`
-// schema (snake_case columns, item_id instead of a client-generated id).
+// schema (snake_case columns, shop_product_id instead of a
+// client-generated id — items now live in shop_products/products, see
+// PROJECT_BRIEF.md's shared-catalog note).
 //
 // Usage: node scripts/seed-demo-bills.mjs <email> <password> [shopName]
 
@@ -35,7 +37,7 @@ const SAMPLE_CUSTOMERS = [
 ];
 const daysAgo = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString();
 const mkLine = (item, qty) => ({
-  item_id: item.id,
+  shop_product_id: item.id,
   code: item.code,
   name: item.name,
   price: item.price,
@@ -61,9 +63,14 @@ async function main() {
     return;
   }
 
-  const { data: items, error: itemsError } = await supabase.from("items").select("*").eq("shop_id", shop.id).order("code");
+  const { data: shopProducts, error: itemsError } = await supabase
+    .from("shop_products")
+    .select("*, product:products(*)")
+    .eq("shop_id", shop.id)
+    .order("code");
   if (itemsError) throw itemsError;
-  if (items.length === 0) throw new Error("This shop has no items to bill — nothing to seed.");
+  if (shopProducts.length === 0) throw new Error("This shop has no items to bill — nothing to seed.");
+  const items = shopProducts.map(({ product, ...sp }) => ({ ...sp, name: product.name }));
   const pick = (i) => items[i % items.length];
 
   const draftBills = [

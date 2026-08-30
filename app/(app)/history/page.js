@@ -103,7 +103,7 @@ export default function HistoryPage() {
                     <td colSpan={6} className="px-6 py-4">
                       <div className="space-y-1.5">
                         {(b.items || []).map((it, idx) => (
-                          <div key={it.item_id || idx} className="flex justify-between text-xs ks-mono">
+                          <div key={it.shop_product_id || idx} className="flex justify-between text-xs ks-mono">
                             <span>
                               {it.name} × {it.qty}
                               {it.unit}

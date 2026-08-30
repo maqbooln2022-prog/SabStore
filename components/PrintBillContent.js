@@ -26,7 +26,7 @@ export default function PrintBillContent({ bill, storeName, gstin }) {
         </thead>
         <tbody>
           {(bill.items || []).map((it, idx) => (
-            <tr key={it.item_id || idx}>
+            <tr key={it.shop_product_id || idx}>
               <td style={{ padding: "2px 0" }}>{it.name}</td>
               <td style={{ padding: "2px 0", textAlign: "center" }}>
                 {it.qty}
