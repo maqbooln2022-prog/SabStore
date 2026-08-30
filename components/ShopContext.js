@@ -14,6 +14,7 @@ export function ShopProvider({ children }) {
   const [activeShopId, setActiveShopIdState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+  const [user, setUser] = useState(null);
 
   const showToast = useCallback((msg, tone = "ok") => {
     setToast({ msg, tone });
@@ -36,7 +37,15 @@ export function ShopProvider({ children }) {
 
   useEffect(() => {
     loadShops();
-  }, [loadShops]);
+    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
+  }, [loadShops, supabase]);
+
+  async function updateProfile(fields) {
+    const { data, error } = await supabase.auth.updateUser({ data: fields });
+    if (error) throw error;
+    setUser(data.user);
+    return data.user;
+  }
 
   function setActiveShopId(id) {
     setActiveShopIdState(id);
@@ -113,6 +122,8 @@ export function ShopProvider({ children }) {
         reload: loadShops,
         toast,
         showToast,
+        user,
+        updateProfile,
       }}
     >
       {children}

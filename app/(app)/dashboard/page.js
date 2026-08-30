@@ -17,12 +17,12 @@ import { useShop } from "@/components/ShopContext";
 import StatCard from "@/components/StatCard";
 import StatDetailModal from "@/components/StatDetailModal";
 import CustomerDetailModal from "@/components/CustomerDetailModal";
-import { rupee } from "@/lib/format";
+import { rupee, greeting, displayName } from "@/lib/format";
 import { customerBalance, topCustomers } from "@/lib/dashboardHelpers";
 import { fetchShopItems } from "@/lib/products";
 
 export default function DashboardPage() {
-  const { supabase, activeShopId, activeShop } = useShop();
+  const { supabase, activeShopId, activeShop, user } = useShop();
   const router = useRouter();
   const [items, setItems] = useState([]);
   const [bills, setBills] = useState([]);
@@ -92,6 +92,9 @@ export default function DashboardPage() {
       <div className="ks-hero p-6 sm:p-7 mb-4">
         <div className="relative flex items-start justify-between flex-wrap gap-4">
           <div>
+            <p className="text-sm text-white/80 mb-2">
+              {greeting()}{displayName(user) ? `, ${displayName(user)}` : ""} 👋
+            </p>
             <div className="ks-hero-chip inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full mb-3">
               <TrendingUp size={13} /> Today&apos;s sales
             </div>

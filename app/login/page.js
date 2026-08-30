@@ -10,6 +10,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
   const [mode, setMode] = useState("signin"); // "signin" | "signup"
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,7 +45,11 @@ export default function LoginPage() {
       if (error) setError(error.message);
       else router.replace("/dashboard");
     } else {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName.trim() } },
+      });
       if (error) setError(error.message);
       else if (data.session) router.replace("/dashboard");
       else setNotice("Check your email to confirm your account, then sign in.");
@@ -94,6 +99,20 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
+            {mode === "signup" && (
+              <div>
+                <label className="text-xs font-medium text-muted mb-1 block">Your name</label>
+                <input
+                  type="text"
+                  required
+                  autoComplete="name"
+                  className="ks-input"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="e.g. Suresh Sharma"
+                />
+              </div>
+            )}
             <div>
               <label className="text-xs font-medium text-muted mb-1 block">Email</label>
               <input

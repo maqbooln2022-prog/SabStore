@@ -7,7 +7,8 @@ import Field from "@/components/ui/Field";
 import { useShop } from "@/components/ShopContext";
 
 export default function StoreSettingsModal({ onClose }) {
-  const { activeShop, updateActiveShop, showToast } = useShop();
+  const { activeShop, updateActiveShop, user, updateProfile, showToast } = useShop();
+  const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "");
   const [name, setName] = useState(activeShop?.name || "");
   const [gstin, setGstin] = useState(activeShop?.gstin || "");
   const [upiId, setUpiId] = useState(activeShop?.upi_id || "");
@@ -18,6 +19,9 @@ export default function StoreSettingsModal({ onClose }) {
     setSaving(true);
     setError("");
     try {
+      if (fullName.trim() !== (user?.user_metadata?.full_name || "")) {
+        await updateProfile({ full_name: fullName.trim() });
+      }
       await updateActiveShop({
         name: name.trim() || activeShop.name,
         gstin: gstin.trim() || null,
@@ -34,6 +38,9 @@ export default function StoreSettingsModal({ onClose }) {
   return (
     <Modal title="Store settings" onClose={onClose}>
       <div className="space-y-3.5">
+        <Field label="Your name (shown on the dashboard greeting)">
+          <input className="ks-input" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Suresh Sharma" />
+        </Field>
         <Field label="Store name">
           <input className="ks-input" value={name} onChange={(e) => setName(e.target.value)} />
         </Field>

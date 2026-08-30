@@ -21,6 +21,7 @@ import {
 import { useShop } from "@/components/ShopContext";
 import ShopTypeIcon from "@/components/ShopTypeIcon";
 import { shopTypeInfo } from "@/lib/shopTypes";
+import { greeting } from "@/lib/format";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -35,12 +36,6 @@ const NAV_ITEMS = [
 ];
 
 const todayStr = () => new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-}
 
 export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
   const { supabase, shops, activeShop, activeShopId, setActiveShopId } = useShop();
