@@ -49,7 +49,9 @@ export function ShopProvider({ children }) {
 
   function setActiveShopId(id) {
     setActiveShopIdState(id);
-    if (typeof window !== "undefined") localStorage.setItem(ACTIVE_SHOP_KEY, id);
+    if (typeof window === "undefined") return;
+    if (id) localStorage.setItem(ACTIVE_SHOP_KEY, id);
+    else localStorage.removeItem(ACTIVE_SHOP_KEY);
   }
 
   async function addShop(name, type) {
@@ -106,6 +108,20 @@ export function ShopProvider({ children }) {
     return data;
   }
 
+  // Permanently deletes the active shop and everything under it (items,
+  // bills, movements, credits, day-close history, expenses, supplier
+  // links) — schema.sql cascades all of that from the shops row.
+  // Products/suppliers themselves are owner-level and untouched, since
+  // they may still be linked to the owner's other shops.
+  async function deleteActiveShop() {
+    if (!activeShopId) return;
+    const { error } = await supabase.from("shops").delete().eq("id", activeShopId);
+    if (error) throw error;
+    const remaining = shops.filter((s) => s.id !== activeShopId);
+    setShops(remaining);
+    setActiveShopId(remaining[0]?.id ?? null);
+  }
+
   const activeShop = shops.find((s) => s.id === activeShopId) || null;
 
   return (
@@ -118,6 +134,7 @@ export function ShopProvider({ children }) {
         setActiveShopId,
         addShop,
         updateActiveShop,
+        deleteActiveShop,
         loading,
         reload: loadShops,
         toast,
