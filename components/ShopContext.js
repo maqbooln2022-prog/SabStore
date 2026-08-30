@@ -99,7 +99,15 @@ export function ShopProvider({ children }) {
     return json;
   }
 
-  async function addShop(name, type) {
+  // By default a new shop starts empty — the owner adds their own items via
+  // Inventory. Two opt-in ways to skip typing everything by hand:
+  //   - seedTemplate: pre-fill a generic starter catalog for the business type
+  //   - importItems: reuse items (from lib/products.js's fetchShopItems shape)
+  //     the owner already set up in one of their other shops — since products
+  //     are an owner-level shared catalog, this just links a new shop_products
+  //     row to the same product_id rather than duplicating it. Stock always
+  //     starts at 0 since it's a physically new shop.
+  async function addShop(name, type, { seedTemplate = false, importItems = [] } = {}) {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -121,31 +129,47 @@ export function ShopProvider({ children }) {
     });
     if (memberError) throw memberError;
 
-    const seedItems = seedItemsForShop(type);
-    if (seedItems.length > 0) {
-      // Seed items split across the owner-level `products` catalog and this
-      // shop's `shop_products` price/stock instance of each — see
-      // PROJECT_BRIEF.md's shared-catalog note.
-      const productRows = seedItems.map(({ code, price, cost_price, gst, stock, low_at, quick, ...product }) => ({
-        ...product,
-        owner_id: user.id,
-      }));
-      const { data: products, error: productError } = await supabase.from("products").insert(productRows).select();
-      if (productError) throw productError;
-
-      const shopProductRows = seedItems.map((it, i) => ({
+    if (importItems.length > 0) {
+      const shopProductRows = importItems.map((it) => ({
         shop_id: shop.id,
-        product_id: products[i].id,
+        product_id: it.product_id,
         code: it.code,
         price: it.price,
         cost_price: it.cost_price,
         gst: it.gst,
-        stock: it.stock,
+        stock: 0,
         low_at: it.low_at,
         quick: it.quick,
       }));
-      const { error: seedError } = await supabase.from("shop_products").insert(shopProductRows);
-      if (seedError) throw seedError;
+      const { error: importError } = await supabase.from("shop_products").insert(shopProductRows);
+      if (importError) throw importError;
+    } else if (seedTemplate) {
+      const seedItems = seedItemsForShop(type);
+      if (seedItems.length > 0) {
+        // Seed items split across the owner-level `products` catalog and this
+        // shop's `shop_products` price/stock instance of each — see
+        // PROJECT_BRIEF.md's shared-catalog note.
+        const productRows = seedItems.map(({ code, price, cost_price, gst, stock, low_at, quick, ...product }) => ({
+          ...product,
+          owner_id: user.id,
+        }));
+        const { data: products, error: productError } = await supabase.from("products").insert(productRows).select();
+        if (productError) throw productError;
+
+        const shopProductRows = seedItems.map((it, i) => ({
+          shop_id: shop.id,
+          product_id: products[i].id,
+          code: it.code,
+          price: it.price,
+          cost_price: it.cost_price,
+          gst: it.gst,
+          stock: it.stock,
+          low_at: it.low_at,
+          quick: it.quick,
+        }));
+        const { error: seedError } = await supabase.from("shop_products").insert(shopProductRows);
+        if (seedError) throw seedError;
+      }
     }
 
     setShops((prev) => [...prev, shop]);
