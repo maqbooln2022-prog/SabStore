@@ -5,8 +5,17 @@ import { Loader2 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import { rupee } from "@/lib/format";
 import { fetchShopItems } from "@/lib/products";
+import ModuleGuard from "@/components/ModuleGuard";
 
 export default function CashbookPage() {
+  return (
+    <ModuleGuard module="cashbook">
+      <CashbookPageInner />
+    </ModuleGuard>
+  );
+}
+
+function CashbookPageInner() {
   const { supabase, activeShopId } = useShop();
   const [bills, setBills] = useState([]);
   const [draws, setDraws] = useState([]);

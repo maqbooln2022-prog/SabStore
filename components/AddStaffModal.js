@@ -1,0 +1,75 @@
+"use client";
+
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import Modal from "@/components/ui/Modal";
+import Field from "@/components/ui/Field";
+import { MODULES, defaultPermissions } from "@/lib/modules";
+
+export default function AddStaffModal({ onClose, onAdd }) {
+  const [name, setName] = useState("");
+  const [pin, setPin] = useState("");
+  const [permissions, setPermissions] = useState(defaultPermissions(false));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const valid = name.trim() && /^\d{6,}$/.test(pin);
+
+  function togglePermission(key) {
+    setPermissions((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  async function handleAdd() {
+    setSaving(true);
+    setError("");
+    try {
+      await onAdd({ name: name.trim(), pin, permissions });
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal title="Add staff member" onClose={onClose}>
+      <div className="space-y-3.5">
+        <Field label="Worker's name">
+          <input className="ks-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ramesh" />
+        </Field>
+        <Field label="PIN (6+ digits — this is their login password)">
+          <input
+            className="ks-input ks-mono"
+            inputMode="numeric"
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+            placeholder="e.g. 483920"
+          />
+        </Field>
+        <Field label="What can they access?">
+          <div className="grid grid-cols-2 gap-2">
+            {MODULES.map((m) => (
+              <label
+                key={m.key}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border-2 cursor-pointer transition-colors"
+                style={
+                  permissions[m.key]
+                    ? { borderColor: "#4F46E5", background: "#EEF0FE", color: "#4F46E5" }
+                    : { borderColor: "#E2E4F0", color: "#6B7280" }
+                }
+              >
+                <input type="checkbox" className="hidden" checked={!!permissions[m.key]} onChange={() => togglePermission(m.key)} />
+                {m.label}
+              </label>
+            ))}
+          </div>
+        </Field>
+        {error && (
+          <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
+        )}
+        <button disabled={!valid || saving} onClick={handleAdd} className="ks-btn-primary w-full flex items-center justify-center gap-2">
+          {saving && <Loader2 size={16} className="animate-spin" />}
+          Add staff member
+        </button>
+      </div>
+    </Modal>
+  );
+}

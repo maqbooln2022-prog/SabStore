@@ -10,8 +10,17 @@ import AdjustStockModal from "@/components/AdjustStockModal";
 import { reorderSuggestion } from "@/lib/inventoryHelpers";
 import { rupee } from "@/lib/format";
 import { fetchShopItems, flattenShopProduct } from "@/lib/products";
+import ModuleGuard from "@/components/ModuleGuard";
 
 export default function InventoryPage() {
+  return (
+    <ModuleGuard module="inventory">
+      <InventoryPageInner />
+    </ModuleGuard>
+  );
+}
+
+function InventoryPageInner() {
   const { supabase, activeShopId, showToast } = useShop();
   const [items, setItems] = useState([]);
   const [bills, setBills] = useState([]);

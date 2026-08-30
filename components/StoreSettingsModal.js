@@ -5,6 +5,7 @@ import { Loader2, AlertTriangle } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Field from "@/components/ui/Field";
 import { useShop } from "@/components/ShopContext";
+import { MODULES } from "@/lib/modules";
 
 export default function StoreSettingsModal({ onClose }) {
   const { activeShop, updateActiveShop, deleteActiveShop, user, updateProfile, showToast } = useShop();
@@ -12,8 +13,15 @@ export default function StoreSettingsModal({ onClose }) {
   const [name, setName] = useState(activeShop?.name || "");
   const [gstin, setGstin] = useState(activeShop?.gstin || "");
   const [upiId, setUpiId] = useState(activeShop?.upi_id || "");
+  const [enabledModules, setEnabledModules] = useState(
+    activeShop?.enabled_modules || MODULES.map((m) => m.key)
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  function toggleModule(key) {
+    setEnabledModules((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  }
 
   const [showDelete, setShowDelete] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -32,6 +40,7 @@ export default function StoreSettingsModal({ onClose }) {
         name: name.trim() || activeShop.name,
         gstin: gstin.trim() || null,
         upi_id: upiId.trim() || null,
+        enabled_modules: enabledModules,
       });
       showToast("Settings saved");
       onClose();
@@ -73,6 +82,24 @@ export default function StoreSettingsModal({ onClose }) {
             onChange={(e) => setGstin(e.target.value.toUpperCase())}
             placeholder="e.g. 07AAAAA0000A1Z5"
           />
+        </Field>
+        <Field label="Enabled features for this shop">
+          <div className="grid grid-cols-2 gap-2">
+            {MODULES.map((m) => (
+              <label
+                key={m.key}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border-2 cursor-pointer transition-colors"
+                style={
+                  enabledModules.includes(m.key)
+                    ? { borderColor: "#4F46E5", background: "#EEF0FE", color: "#4F46E5" }
+                    : { borderColor: "#E2E4F0", color: "#6B7280" }
+                }
+              >
+                <input type="checkbox" className="hidden" checked={enabledModules.includes(m.key)} onChange={() => toggleModule(m.key)} />
+                {m.label}
+              </label>
+            ))}
+          </div>
         </Field>
         {error && (
           <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>

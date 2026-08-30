@@ -6,8 +6,17 @@ import { useShop } from "@/components/ShopContext";
 import CategoryChip from "@/components/CategoryChip";
 import AddExpenseModal from "@/components/AddExpenseModal";
 import { rupee } from "@/lib/format";
+import ModuleGuard from "@/components/ModuleGuard";
 
 export default function ExpensesPage() {
+  return (
+    <ModuleGuard module="expenses">
+      <ExpensesPageInner />
+    </ModuleGuard>
+  );
+}
+
+function ExpensesPageInner() {
   const { supabase, activeShopId, showToast } = useShop();
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);

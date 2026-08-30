@@ -23,8 +23,17 @@ import { rupee } from "@/lib/format";
 import { whatsappLink, billMessageText, taxBreakup } from "@/lib/messaging";
 import { parseSpokenQuantity, matchItemFromSpeech } from "@/lib/voiceHelpers";
 import { fetchShopItems } from "@/lib/products";
+import ModuleGuard from "@/components/ModuleGuard";
 
 export default function BillingPage() {
+  return (
+    <ModuleGuard module="billing">
+      <BillingPageInner />
+    </ModuleGuard>
+  );
+}
+
+function BillingPageInner() {
   const { supabase, activeShopId, activeShop, showToast } = useShop();
   const [items, setItems] = useState([]);
   const [bills, setBills] = useState([]);

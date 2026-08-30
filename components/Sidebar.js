@@ -13,6 +13,7 @@ import {
   Wallet2,
   BookOpen,
   Truck,
+  Users,
   ChevronDown,
   Plus,
   Settings,
@@ -21,24 +22,24 @@ import {
 import { useShop } from "@/components/ShopContext";
 import ShopTypeIcon from "@/components/ShopTypeIcon";
 import { shopTypeInfo } from "@/lib/shopTypes";
-import { greeting } from "@/lib/format";
+import { greeting, displayName } from "@/lib/format";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/inventory", label: "Inventory", icon: Package },
-  { href: "/billing", label: "New Bill", icon: Receipt },
-  { href: "/history", label: "History", icon: Clock },
-  { href: "/credit", label: "Udhaar", icon: Wallet },
-  { href: "/dayclose", label: "Day Close", icon: Calculator },
-  { href: "/expenses", label: "Expenses", icon: Wallet2 },
-  { href: "/cashbook", label: "Cashbook", icon: BookOpen },
-  { href: "/suppliers", label: "Suppliers", icon: Truck },
+  { href: "/dashboard", key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/inventory", key: "inventory", label: "Inventory", icon: Package },
+  { href: "/billing", key: "billing", label: "New Bill", icon: Receipt },
+  { href: "/history", key: "history", label: "History", icon: Clock },
+  { href: "/credit", key: "credit", label: "Udhaar", icon: Wallet },
+  { href: "/dayclose", key: "dayclose", label: "Day Close", icon: Calculator },
+  { href: "/expenses", key: "expenses", label: "Expenses", icon: Wallet2 },
+  { href: "/cashbook", key: "cashbook", label: "Cashbook", icon: BookOpen },
+  { href: "/suppliers", key: "suppliers", label: "Suppliers", icon: Truck },
 ];
 
 const todayStr = () => new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
 export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
-  const { supabase, shops, activeShop, activeShopId, setActiveShopId } = useShop();
+  const { supabase, shops, activeShop, activeShopId, setActiveShopId, user, isOwner, hasPermission } = useShop();
   const pathname = usePathname();
   const router = useRouter();
   const [lowStockCount, setLowStockCount] = useState(0);
@@ -65,6 +66,9 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
   }
 
   if (!activeShop) return null;
+
+  const enabledModules = activeShop.enabled_modules || NAV_ITEMS.map((i) => i.key);
+  const visibleNav = NAV_ITEMS.filter((item) => enabledModules.includes(item.key) && hasPermission(item.key));
 
   return (
     <div className="h-full flex flex-col bg-[#000000] text-white">
@@ -93,16 +97,21 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
         </div>
         <div className="flex items-center justify-between px-1">
           <span className="text-[11px] text-white/50">{shopTypeInfo(activeShop.type).label}</span>
-          <button onClick={onAddShop} className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: "#818CF8" }}>
-            <Plus size={12} /> Add shop
-          </button>
+          {isOwner && (
+            <button onClick={onAddShop} className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: "#818CF8" }}>
+              <Plus size={12} /> Add shop
+            </button>
+          )}
         </div>
       </div>
 
-      <p className="px-5 pt-3 text-xs text-white/40">{greeting()} 👋</p>
+      <p className="px-5 pt-3 text-xs text-white/40">
+        {greeting()}
+        {displayName(user) ? `, ${displayName(user)}` : ""} 👋
+      </p>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto ks-scroll">
-        {NAV_ITEMS.map((item) => {
+        {visibleNav.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href;
           return (
@@ -124,16 +133,29 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
             </Link>
           );
         })}
+        {isOwner && (
+          <Link
+            href="/staff"
+            onClick={() => onNavigate?.()}
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              pathname === "/staff" ? "bg-[#4F46E5] text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            <Users size={17} /> Staff
+          </Link>
+        )}
       </nav>
 
       <div className="p-3 border-t border-white/10">
         <div className="ks-mono text-[11px] text-white/40 px-3.5 pb-2">{todayStr()}</div>
-        <button
-          onClick={onOpenSettings}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"
-        >
-          <Settings size={17} /> Store settings
-        </button>
+        {isOwner && (
+          <button
+            onClick={onOpenSettings}
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"
+          >
+            <Settings size={17} /> Store settings
+          </button>
+        )}
         <button
           onClick={handleSignOut}
           className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"

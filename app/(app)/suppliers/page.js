@@ -6,8 +6,17 @@ import { useShop } from "@/components/ShopContext";
 import AddSupplierModal from "@/components/AddSupplierModal";
 import LinkSupplierModal from "@/components/LinkSupplierModal";
 import { whatsappLink } from "@/lib/messaging";
+import ModuleGuard from "@/components/ModuleGuard";
 
 export default function SuppliersPage() {
+  return (
+    <ModuleGuard module="suppliers">
+      <SuppliersPageInner />
+    </ModuleGuard>
+  );
+}
+
+function SuppliersPageInner() {
   const { supabase, activeShopId, showToast } = useShop();
   const [allSuppliers, setAllSuppliers] = useState([]); // every supplier this owner has, any shop
   const [linkedIds, setLinkedIds] = useState(new Set()); // supplier ids linked to the active shop

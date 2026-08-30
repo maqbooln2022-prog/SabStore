@@ -8,8 +8,17 @@ import { customerBalance } from "@/lib/dashboardHelpers";
 import { whatsappLink, creditReminderText } from "@/lib/messaging";
 import NewCreditModal from "@/components/NewCreditModal";
 import RecordPaymentModal from "@/components/RecordPaymentModal";
+import ModuleGuard from "@/components/ModuleGuard";
 
 export default function CreditPage() {
+  return (
+    <ModuleGuard module="credit">
+      <CreditPageInner />
+    </ModuleGuard>
+  );
+}
+
+function CreditPageInner() {
   const { supabase, activeShopId, activeShop, showToast } = useShop();
   const [credits, setCredits] = useState([]);
   const [loading, setLoading] = useState(true);

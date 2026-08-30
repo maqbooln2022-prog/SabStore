@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import { seedItemsForShop } from "@/lib/shopTypes";
+import { defaultPermissions } from "@/lib/modules";
 
 const ShopContext = createContext(null);
 
@@ -15,6 +16,7 @@ export function ShopProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [user, setUser] = useState(null);
+  const [currentMember, setCurrentMember] = useState(null);
 
   const showToast = useCallback((msg, tone = "ok") => {
     setToast({ msg, tone });
@@ -22,6 +24,8 @@ export function ShopProvider({ children }) {
   }, []);
 
   const loadShops = useCallback(async () => {
+    // RLS now scopes this to shops the signed-in user is a member of —
+    // owner or staff — not just shops they own.
     const { data, error } = await supabase.from("shops").select("*").order("created_at", { ascending: true });
     if (!error) {
       setShops(data || []);
@@ -40,6 +44,28 @@ export function ShopProvider({ children }) {
     supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
   }, [loadShops, supabase]);
 
+  // Which shop_members row (role + permissions) the signed-in user holds
+  // for the active shop — drives nav filtering and action gating.
+  useEffect(() => {
+    if (!activeShopId || !user) {
+      setCurrentMember(null);
+      return;
+    }
+    let active = true;
+    supabase
+      .from("shop_members")
+      .select("*")
+      .eq("shop_id", activeShopId)
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active) setCurrentMember(data ?? null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [supabase, activeShopId, user]);
+
   async function updateProfile(fields) {
     const { data, error } = await supabase.auth.updateUser({ data: fields });
     if (error) throw error;
@@ -54,6 +80,25 @@ export function ShopProvider({ children }) {
     else localStorage.removeItem(ACTIVE_SHOP_KEY);
   }
 
+  // Calls one of the app/api/staff/* routes with the current session's
+  // access token attached, so the server can verify who's asking.
+  async function callStaffApi(path, body) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const res = await fetch(path, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Request failed");
+    return json;
+  }
+
   async function addShop(name, type) {
     const {
       data: { user },
@@ -66,6 +111,15 @@ export function ShopProvider({ children }) {
       .select()
       .single();
     if (error) throw error;
+
+    const { error: memberError } = await supabase.from("shop_members").insert({
+      shop_id: shop.id,
+      user_id: user.id,
+      role: "owner",
+      name: user.user_metadata?.full_name || "Owner",
+      permissions: defaultPermissions(true),
+    });
+    if (memberError) throw memberError;
 
     const seedItems = seedItemsForShop(type);
     if (seedItems.length > 0) {
@@ -110,7 +164,7 @@ export function ShopProvider({ children }) {
 
   // Permanently deletes the active shop and everything under it (items,
   // bills, movements, credits, day-close history, expenses, supplier
-  // links) — schema.sql cascades all of that from the shops row.
+  // links, staff) — schema.sql cascades all of that from the shops row.
   // Products/suppliers themselves are owner-level and untouched, since
   // they may still be linked to the owner's other shops.
   async function deleteActiveShop() {
@@ -123,6 +177,12 @@ export function ShopProvider({ children }) {
   }
 
   const activeShop = shops.find((s) => s.id === activeShopId) || null;
+  const isOwner = currentMember?.role === "owner";
+  function hasPermission(moduleKey) {
+    if (!currentMember) return false;
+    if (currentMember.role === "owner") return true;
+    return !!currentMember.permissions?.[moduleKey];
+  }
 
   return (
     <ShopContext.Provider
@@ -141,6 +201,10 @@ export function ShopProvider({ children }) {
         showToast,
         user,
         updateProfile,
+        currentMember,
+        isOwner,
+        hasPermission,
+        callStaffApi,
       }}
     >
       {children}

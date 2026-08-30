@@ -6,8 +6,17 @@ import { useShop } from "@/components/ShopContext";
 import { rupee } from "@/lib/format";
 import { billMessageText, whatsappLink } from "@/lib/messaging";
 import PrintBillContent from "@/components/PrintBillContent";
+import ModuleGuard from "@/components/ModuleGuard";
 
 export default function HistoryPage() {
+  return (
+    <ModuleGuard module="history">
+      <HistoryPageInner />
+    </ModuleGuard>
+  );
+}
+
+function HistoryPageInner() {
   const { supabase, activeShopId, activeShop } = useShop();
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);

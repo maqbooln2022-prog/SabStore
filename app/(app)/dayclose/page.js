@@ -6,8 +6,17 @@ import { useShop } from "@/components/ShopContext";
 import Field from "@/components/ui/Field";
 import AddDrawModal from "@/components/AddDrawModal";
 import { rupee } from "@/lib/format";
+import ModuleGuard from "@/components/ModuleGuard";
 
 export default function DayClosePage() {
+  return (
+    <ModuleGuard module="dayclose">
+      <DayClosePageInner />
+    </ModuleGuard>
+  );
+}
+
+function DayClosePageInner() {
   const { supabase, activeShopId, showToast } = useShop();
   const [bills, setBills] = useState([]);
   const [draws, setDraws] = useState([]);
