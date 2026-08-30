@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabaseAdmin";
+import { isRateLimited, requestIp } from "@/lib/rateLimit";
 
 // Resolves a staff code to the login email for that worker's account —
 // called before the browser's own supabase.auth.signInWithPassword, so
 // the actual PIN check still goes through Supabase's normal secure
-// sign-in (rate-limited, etc.), not this route.
+// sign-in (rate-limited, etc.), not this route. This route's own lookup
+// is rate-limited too — without that, it's a free 404/200 oracle for
+// enumerating valid staff codes before ever touching Supabase's auth
+// rate limiting (see lib/rateLimit.js for this limiter's caveats).
 export async function POST(request) {
+  if (isRateLimited(`staff-login:${requestIp(request)}`, { windowMs: 60_000, max: 10 })) {
+    return NextResponse.json({ error: "Too many attempts — wait a minute and try again" }, { status: 429 });
+  }
+
   const { staffCode } = await request.json();
   if (!staffCode) return NextResponse.json({ error: "Staff code is required" }, { status: 400 });
 

@@ -217,9 +217,11 @@ as $$
   );
 $$;
 
--- For products/suppliers (owner-level tables): true if the caller IS
--- that owner, or is a member of any shop belonging to that owner.
-create or replace function owns_via_membership(target_owner_id uuid)
+-- For products/suppliers INSERT only (the row doesn't exist yet, so it
+-- can't be linked via shop_products/shop_suppliers) — true if the caller
+-- IS that owner, or is a member of some shop belonging to that owner
+-- with the given permission (pass null to skip the permission check).
+create or replace function owns_via_membership(target_owner_id uuid, required_permission text default null)
 returns boolean
 language sql
 stable
@@ -230,8 +232,47 @@ as $$
     or exists (
       select 1 from shops s
       join shop_members sm on sm.shop_id = s.id
-      where s.owner_id = target_owner_id and sm.user_id = auth.uid()
+      where s.owner_id = target_owner_id
+        and sm.user_id = auth.uid()
+        and (required_permission is null or sm.role = 'owner' or (sm.permissions->>required_permission)::boolean is true)
     );
+$$;
+
+-- For products/suppliers SELECT/UPDATE/DELETE: scoped to the specific
+-- shop(s) the product/supplier is actually linked to, not just "any
+-- shop this owner runs" — and requires the given permission for writes.
+create or replace function product_linked_to_member_shop(target_product_id uuid, required_permission text default null)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from shop_products sp
+    join shop_members sm on sm.shop_id = sp.shop_id
+    where sp.product_id = target_product_id
+      and sm.user_id = auth.uid()
+      and (required_permission is null or sm.role = 'owner' or (sm.permissions->>required_permission)::boolean is true)
+  );
+$$;
+
+create or replace function supplier_linked_to_member_shop(target_supplier_id uuid, required_permission text default null)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from shop_suppliers ss
+    join shop_members sm on sm.shop_id = ss.shop_id
+    where ss.supplier_id = target_supplier_id
+      and sm.user_id = auth.uid()
+      and (required_permission is null or sm.role = 'owner' or (sm.permissions->>required_permission)::boolean is true)
+  );
 $$;
 
 -- =========================================================
@@ -271,28 +312,31 @@ create policy "Owners can add shop members" on shop_members for insert
     is_shop_owner(shop_id)
     or exists (select 1 from shops s where s.id = shop_id and s.owner_id = auth.uid())
   );
-create policy "Owners can update shop members" on shop_members for update
-  using (is_shop_owner(shop_id)) with check (is_shop_owner(shop_id));
-create policy "Owners can remove shop members" on shop_members for delete
-  using (is_shop_owner(shop_id));
+create policy "Owners can update staff members" on shop_members for update
+  using (is_shop_owner(shop_id) and role = 'staff')
+  with check (is_shop_owner(shop_id) and role = 'staff');
+create policy "Owners can remove staff members" on shop_members for delete
+  using (is_shop_owner(shop_id) and role = 'staff');
 
 create policy "Members can view products" on products for select
-  using (owns_via_membership(owner_id));
-create policy "Members can insert products" on products for insert
-  with check (owns_via_membership(owner_id));
-create policy "Members can update products" on products for update
-  using (owns_via_membership(owner_id)) with check (owns_via_membership(owner_id));
-create policy "Members can delete products" on products for delete
-  using (owns_via_membership(owner_id));
+  using (owner_id = auth.uid() or product_linked_to_member_shop(id));
+create policy "Members with inventory permission can insert products" on products for insert
+  with check (owns_via_membership(owner_id, 'inventory'));
+create policy "Members with inventory permission can update products" on products for update
+  using (owner_id = auth.uid() or product_linked_to_member_shop(id, 'inventory'))
+  with check (owner_id = auth.uid() or product_linked_to_member_shop(id, 'inventory'));
+create policy "Members with inventory permission can delete products" on products for delete
+  using (owner_id = auth.uid() or product_linked_to_member_shop(id, 'inventory'));
 
 create policy "Members can view suppliers" on suppliers for select
-  using (owns_via_membership(owner_id));
+  using (owner_id = auth.uid() or supplier_linked_to_member_shop(id));
 create policy "Members with suppliers permission can insert" on suppliers for insert
-  with check (owns_via_membership(owner_id));
+  with check (owns_via_membership(owner_id, 'suppliers'));
 create policy "Members with suppliers permission can update" on suppliers for update
-  using (owns_via_membership(owner_id)) with check (owns_via_membership(owner_id));
+  using (owner_id = auth.uid() or supplier_linked_to_member_shop(id, 'suppliers'))
+  with check (owner_id = auth.uid() or supplier_linked_to_member_shop(id, 'suppliers'));
 create policy "Members with suppliers permission can delete" on suppliers for delete
-  using (owns_via_membership(owner_id));
+  using (owner_id = auth.uid() or supplier_linked_to_member_shop(id, 'suppliers'));
 
 create policy "Members can view shop_products" on shop_products for select
   using (is_shop_member(shop_id));

@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
+import { randomInt } from "crypto";
 import { createAdminClient, getRequestUser } from "@/lib/supabaseAdmin";
 import { MODULES } from "@/lib/modules";
 
+// Staff codes are half of a real login credential, so they're generated
+// with a CSPRNG (crypto.randomInt), not Math.random().
 function randomCode(len = 6) {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O or 1/I, easy to read aloud
   let out = "";
-  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < len; i++) out += chars[randomInt(chars.length)];
   return out;
 }
 
