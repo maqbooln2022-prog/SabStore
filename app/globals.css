@@ -20,9 +20,75 @@ body {
 .ks-display { font-family: "Sora", sans-serif; }
 .ks-mono { font-family: "IBM Plex Mono", monospace; }
 
+.ks-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.ks-scroll::-webkit-scrollbar-thumb { background: #E1DCD0; border-radius: 999px; }
+
 .ks-card {
   background: #fff;
   border: 1px solid #e2e4f0;
   border-radius: 18px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 10px 24px -16px rgba(0, 0, 0, 0.15);
+}
+.ks-input { width:100%; border:1.5px solid #E4DFD2; border-radius:12px; padding:9px 12px; font-size:14px; background:#F8F9FD; outline:none; transition: border-color .15s, box-shadow .15s; }
+.ks-input:focus { border-color:#4F46E5; box-shadow: 0 0 0 3px rgba(79,70,229,0.12); background:#fff; }
+.ks-btn-primary { border-radius:999px; background:#4F46E5; color:#fff; font-weight:600; padding:10px 20px; font-size:14px; box-shadow: 0 6px 16px -6px rgba(79,70,229,0.55); transition: filter .15s, transform .1s; }
+.ks-btn-primary:hover { filter: brightness(1.07); }
+.ks-btn-primary:active { transform: scale(.96); }
+.ks-btn-primary:disabled { opacity:.4; box-shadow:none; }
+.ks-btn-outline { border-radius:999px; border:1.5px solid #000000; color:#000000; font-weight:600; padding:9px 18px; font-size:14px; transition: background .15s, color .15s, transform .1s; }
+.ks-btn-outline:hover { background:#000000; color:#fff; }
+.ks-btn-outline:active { transform: scale(.96); }
+.ks-qtybtn { width:26px; height:26px; border-radius:999px; background:#E7E9F3; display:flex; align-items:center; justify-content:center; transition: background .15s, transform .1s; }
+.ks-qtybtn:hover { background:#E4DFD2; }
+.ks-qtybtn:active { transform: scale(.9); }
+
+.ks-hero {
+  background: linear-gradient(135deg, #4F46E5 0%, #129C81 55%, #818CF8 100%);
+  border-radius: 26px;
+  color: #fff;
+  box-shadow: 0 22px 40px -20px rgba(79,70,229,0.6);
+  position: relative;
+  overflow: hidden;
+}
+.ks-hero::after {
+  content: '';
+  position: absolute;
+  right: -40px; top: -60px;
+  width: 220px; height: 220px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+}
+.ks-hero-chip { background: rgba(255,255,255,0.16); backdrop-filter: blur(4px); }
+
+@keyframes ks-pop { 0% { transform: scale(0.85); opacity: 0; } 60% { transform: scale(1.04); opacity:1;} 100% { transform: scale(1);} }
+@keyframes ks-fade-up { from { opacity:0; transform: translateY(8px);} to { opacity:1; transform:none;} }
+@keyframes ks-pulse-dot { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+.ks-pop { animation: ks-pop .4s cubic-bezier(.34,1.56,.64,1); }
+.ks-fade-up { animation: ks-fade-up .35s ease-out; }
+.ks-pulse { animation: ks-pulse-dot 1.6s ease-in-out infinite; }
+
+.ks-print-only { display: none; }
+
+/* Layout — plain CSS + real media queries, not Tailwind responsive classes,
+   so this reliably works even without a JIT compiler in the sandbox. */
+.ks-mobile-bar { display: flex; }
+.ks-mobile-overlay { display: block; }
+.ks-sidebar-wrap { position: fixed; top: 0; left: -288px; height: 100vh; width: 288px; z-index: 40; transition: left .2s ease; }
+.ks-sidebar-wrap.open { left: 0; }
+.ks-main { padding-top: 56px; }
+.ks-page-pad { padding-left: 16px; padding-right: 16px; }
+.ks-billing-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+@media (min-width: 1024px) {
+  .ks-mobile-bar { display: none; }
+  .ks-mobile-overlay { display: none; }
+  .ks-sidebar-wrap { position: sticky; left: 0; }
+  .ks-main { padding-top: 0; }
+  .ks-page-pad { padding-left: 32px; padding-right: 32px; }
+  .ks-billing-grid { grid-template-columns: 3fr 2fr; }
+}
+@media print {
+  body * { visibility: hidden; }
+  .ks-print-only, .ks-print-only * { visibility: visible; }
+  .ks-print-only { display: block !important; position: absolute; top: 0; left: 0; width: 100%; }
+  .ks-no-print { display: none !important; }
 }
