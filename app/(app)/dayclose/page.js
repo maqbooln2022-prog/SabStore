@@ -1,8 +1,190 @@
-// TODO(claude-code): port function DayClose from reference/kirana-store-app.jsx.
-// Cash reconciliation: expected cash (cash sales minus personal draws) vs. actual cash counted, plus the personal-draw log (AddDrawModal).
-// Replace local React state (useState arrays) with Supabase queries/mutations
-// scoped to the active shop -- see supabase/schema.sql for the matching table.
+"use client";
 
-export default function DayclosePage() {
-  return <div>Dayclose -- port from reference/kirana-store-app.jsx</div>;
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, Loader2 } from "lucide-react";
+import { useShop } from "@/components/ShopContext";
+import Field from "@/components/ui/Field";
+import AddDrawModal from "@/components/AddDrawModal";
+import { rupee } from "@/lib/format";
+
+export default function DayClosePage() {
+  const { supabase, activeShopId, showToast } = useShop();
+  const [bills, setBills] = useState([]);
+  const [draws, setDraws] = useState([]);
+  const [reconciliations, setReconciliations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [cashCounted, setCashCounted] = useState("");
+  const [showDraw, setShowDraw] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!activeShopId) return;
+    setLoading(true);
+    const [{ data: billsData }, { data: drawsData }, { data: reconData }] = await Promise.all([
+      supabase.from("bills").select("*").eq("shop_id", activeShopId),
+      supabase.from("draws").select("*").eq("shop_id", activeShopId).order("date", { ascending: false }),
+      supabase.from("reconciliations").select("*").eq("shop_id", activeShopId).order("date", { ascending: false }),
+    ]);
+    setBills(billsData || []);
+    setDraws(drawsData || []);
+    setReconciliations(reconData || []);
+    setLoading(false);
+  }, [supabase, activeShopId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const todaysCashSales = useMemo(() => {
+    const t = new Date().toDateString();
+    return bills
+      .filter((b) => new Date(b.date).toDateString() === t && b.payment_type !== "credit")
+      .reduce((s, b) => s + b.total, 0);
+  }, [bills]);
+
+  const todaysDrawList = useMemo(() => {
+    const t = new Date().toDateString();
+    return draws.filter((d) => new Date(d.date).toDateString() === t);
+  }, [draws]);
+  const todaysDraws = todaysDrawList.reduce((s, d) => s + d.amount, 0);
+
+  const expectedCash = todaysCashSales - todaysDraws;
+  const diff = cashCounted !== "" ? Number(cashCounted) - expectedCash : null;
+
+  async function saveClose() {
+    if (cashCounted === "") return;
+    setSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from("reconciliations")
+        .insert({
+          shop_id: activeShopId,
+          expected_cash: expectedCash,
+          cash_counted: Number(cashCounted),
+          diff: Number(cashCounted) - expectedCash,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      setReconciliations((prev) => [data, ...prev]);
+      setCashCounted("");
+      showToast("Day close saved");
+    } catch (err) {
+      showToast(err.message, "err");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function addDraw(amount, note) {
+    const { data, error } = await supabase.from("draws").insert({ shop_id: activeShopId, amount, note }).select().single();
+    if (error) throw error;
+    setDraws((prev) => [data, ...prev]);
+    setShowDraw(false);
+  }
+
+  if (loading) {
+    return (
+      <div className="pt-6 flex items-center gap-2 text-sm text-muted">
+        <Loader2 size={16} className="animate-spin" /> Loading day close…
+      </div>
+    );
+  }
+
+  return (
+    <div className="pt-6 grid md:grid-cols-2 gap-5">
+      <div className="space-y-4">
+        <div className="ks-card p-5">
+          <h2 className="ks-display font-bold mb-4">Today&apos;s cash reconciliation</h2>
+          <div className="flex items-center justify-between text-sm mb-2">
+            <span className="text-[#6B7280] font-medium">Cash sales today (app)</span>
+            <span className="ks-mono font-bold">{rupee(todaysCashSales)}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm mb-3">
+            <span className="text-[#6B7280] font-medium">Less: personal draws</span>
+            <span className="ks-mono font-bold" style={{ color: "#C13F45" }}>
+              −{rupee(todaysDraws)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm mb-3 pt-2 border-t border-[#E7E9F3]">
+            <span className="font-semibold">Expected cash in register</span>
+            <span className="ks-mono font-bold">{rupee(expectedCash)}</span>
+          </div>
+          <Field label="Cash actually counted in register (₹)">
+            <input
+              type="number"
+              autoFocus
+              className="ks-input text-lg font-semibold ks-mono"
+              value={cashCounted}
+              onChange={(e) => setCashCounted(e.target.value)}
+            />
+          </Field>
+          {diff !== null && (
+            <div className="mt-3 rounded-xl px-3 py-2.5 flex items-center justify-between" style={{ background: diff === 0 ? "#E4F5F0" : "#FDEAEA" }}>
+              <span className="text-xs font-semibold" style={{ color: diff === 0 ? "#4F46E5" : "#C13F45" }}>
+                {diff === 0 ? "Matches perfectly ✓" : diff > 0 ? "Extra cash in register" : "Cash short"}
+              </span>
+              <span className="ks-mono font-bold" style={{ color: diff === 0 ? "#4F46E5" : "#C13F45" }}>
+                {diff > 0 ? "+" : ""}
+                {rupee(diff)}
+              </span>
+            </div>
+          )}
+          <button disabled={cashCounted === "" || saving} onClick={saveClose} className="ks-btn-primary w-full mt-4 flex items-center justify-center gap-2">
+            {saving && <Loader2 size={16} className="animate-spin" />}
+            Save today&apos;s close
+          </button>
+        </div>
+
+        <div className="ks-card p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="ks-display font-bold">Personal draws today</h2>
+            <button
+              onClick={() => setShowDraw(true)}
+              className="text-xs font-semibold px-2.5 py-1.5 rounded-full flex items-center gap-1"
+              style={{ background: "#E7E9F3", color: "#000000" }}
+            >
+              <Plus size={13} /> Add draw
+            </button>
+          </div>
+          <div className="space-y-2">
+            {todaysDrawList.length === 0 && <p className="text-sm text-[#6B7280]">No money taken out for personal use today.</p>}
+            {todaysDrawList.map((d) => (
+              <div key={d.id} className="flex items-center justify-between text-sm">
+                <span className="text-[#6B7280]">{d.note || "Personal draw"}</span>
+                <span className="ks-mono font-semibold" style={{ color: "#C13F45" }}>
+                  −{rupee(d.amount)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="ks-card overflow-hidden h-fit">
+        <div className="px-5 py-4 border-b border-[#E7E9F3]">
+          <h2 className="ks-display font-bold">Past reconciliations</h2>
+        </div>
+        <div className="p-5 space-y-3 max-h-96 overflow-y-auto ks-scroll">
+          {reconciliations.length === 0 && <p className="text-sm text-[#6B7280]">No closes saved yet.</p>}
+          {reconciliations.map((r) => (
+            <div key={r.id} className="flex items-center justify-between text-sm">
+              <div>
+                <div className="font-medium">{new Date(r.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</div>
+                <div className="text-xs text-[#6B7280] ks-mono">
+                  Expected {rupee(r.expected_cash)} · Cash {rupee(r.cash_counted)}
+                </div>
+              </div>
+              <span className="ks-mono font-bold" style={{ color: r.diff === 0 ? "#4F46E5" : "#C13F45" }}>
+                {r.diff > 0 ? "+" : ""}
+                {rupee(r.diff)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {showDraw && <AddDrawModal onClose={() => setShowDraw(false)} onAdd={addDraw} />}
+    </div>
+  );
 }
