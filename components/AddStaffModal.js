@@ -12,6 +12,7 @@ export default function AddStaffModal({ onClose, onAdd }) {
   const [permissions, setPermissions] = useState(defaultPermissions(false));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const pinTooShort = pin.length > 0 && pin.length < 6;
   const valid = name.trim() && /^\d{6,}$/.test(pin);
 
   function togglePermission(key) {
@@ -43,6 +44,9 @@ export default function AddStaffModal({ onClose, onAdd }) {
             onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
             placeholder="e.g. 483920"
           />
+          {pinTooShort && (
+            <p className="text-xs text-[#C13F45] font-medium mt-1">{6 - pin.length} more digit{6 - pin.length === 1 ? "" : "s"} needed</p>
+          )}
         </Field>
         <Field label="What can they access?">
           <div className="grid grid-cols-2 gap-2">

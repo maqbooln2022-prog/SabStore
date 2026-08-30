@@ -11,7 +11,7 @@ import Modal from "@/components/ui/Modal";
 import { MODULES } from "@/lib/modules";
 
 export default function StaffPage() {
-  const { supabase, activeShopId, isOwner, callStaffApi, showToast } = useShop();
+  const { supabase, activeShopId, currentMember, isOwner, callStaffApi, showToast } = useShop();
   const router = useRouter();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,8 +22,11 @@ export default function StaffPage() {
   const [removeLoading, setRemoveLoading] = useState(false);
 
   useEffect(() => {
-    if (!isOwner) router.replace("/dashboard");
-  }, [isOwner, router]);
+    // Wait for currentMember to actually resolve before deciding — on a
+    // fresh page load it starts null, and isOwner is falsy until then,
+    // which would otherwise bounce the real owner away too.
+    if (currentMember && !isOwner) router.replace("/dashboard");
+  }, [currentMember, isOwner, router]);
 
   const load = useCallback(async () => {
     if (!activeShopId) return;
@@ -63,7 +66,13 @@ export default function StaffPage() {
     }
   }
 
-  if (!isOwner) return null;
+  if (!currentMember || !isOwner) {
+    return (
+      <div className="pt-6 flex items-center gap-2 text-sm text-muted">
+        <Loader2 size={16} className="animate-spin" />
+      </div>
+    );
+  }
 
   if (loading) {
     return (

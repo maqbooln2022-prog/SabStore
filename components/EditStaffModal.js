@@ -13,6 +13,7 @@ export default function EditStaffModal({ member, onClose, onSave }) {
   const [newPin, setNewPin] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const pinTooShort = resetPin && newPin.length > 0 && newPin.length < 6;
   const valid = name.trim() && (!resetPin || /^\d{6,}$/.test(newPin));
 
   function togglePermission(key) {
@@ -68,6 +69,11 @@ export default function EditStaffModal({ member, onClose, onSave }) {
               onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
               placeholder="e.g. 583920"
             />
+            {pinTooShort && (
+              <p className="text-xs text-[#C13F45] font-medium mt-1">
+                {6 - newPin.length} more digit{6 - newPin.length === 1 ? "" : "s"} needed
+              </p>
+            )}
           </Field>
         )}
         {error && (
