@@ -297,7 +297,7 @@ alter table suppliers enable row level security;
 alter table shop_suppliers enable row level security;
 
 create policy "Members can view their shops" on shops for select
-  using (is_shop_member(id));
+  using (owner_id = auth.uid() or is_shop_member(id));
 create policy "Owners can insert shops" on shops for insert
   with check (owner_id = auth.uid());
 create policy "Owners can update their shops" on shops for update
