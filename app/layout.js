@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Shop Manager",
+  title: "SabStore",
   description: "Billing, inventory, and udhaar for local shops of any kind",
 };
 

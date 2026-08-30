@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Store, Loader2 } from "lucide-react";
+import Image from "next/image";
+import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
@@ -63,10 +64,8 @@ export default function LoginPage() {
     <main className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
-          <div className="ks-hero w-14 h-14 flex items-center justify-center mb-3">
-            <Store size={26} />
-          </div>
-          <h1 className="ks-display text-2xl font-bold">Shop Manager</h1>
+          <Image src="/logo-mark.svg" alt="SabStore" width={56} height={56} className="rounded-2xl mb-3" priority />
+          <h1 className="ks-display text-2xl font-bold">SabStore</h1>
           <p className="text-sm text-muted mt-1 text-center">
             Billing, inventory &amp; udhaar for your shop
           </p>
