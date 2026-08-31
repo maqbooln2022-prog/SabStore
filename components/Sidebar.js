@@ -86,7 +86,7 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
               <select
                 value={activeShopId}
                 onChange={(e) => setActiveShopId(e.target.value)}
-                className="w-full appearance-none rounded-xl pl-3 pr-8 py-2 text-sm font-bold bg-white/15 text-white border border-white/25 focus:outline-none focus:border-white/60"
+                className="w-full appearance-none rounded-xl pl-3 pr-8 py-2 text-xs italic font-bold bg-white/15 text-white border border-white/25 focus:outline-none focus:border-white/60"
               >
                 {shops.map((s) => (
                   <option key={s.id} value={s.id} style={{ color: "#000" }}>
@@ -98,16 +98,16 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
             </div>
           </div>
           <div className="flex items-center justify-between px-1">
-            <span className="text-[11px] text-white/70 font-medium">{shopTypeInfo(activeShop.type).label}</span>
+            <span className="text-[10px] italic text-white/70 font-medium">{shopTypeInfo(activeShop.type).label}</span>
             {isOwner && (
-              <button onClick={onAddShop} className="flex items-center gap-1 text-[11px] font-bold text-white">
+              <button onClick={onAddShop} className="flex items-center gap-1 text-[10px] italic font-bold text-white">
                 <Plus size={12} /> Add shop
               </button>
             )}
           </div>
         </div>
 
-        <p className="px-1 text-xs text-white/60">
+        <p className="px-1 text-[11px] italic text-white/60">
           {greeting()}
           {displayName(user) ? `, ${displayName(user)}` : ""} 👋
         </p>
@@ -122,7 +122,7 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
               key={item.href}
               href={item.href}
               onClick={() => onNavigate?.()}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold transition-colors ${
                 active ? "bg-white text-[#4338CA] shadow-md" : "text-white/70 hover:bg-white/10 hover:text-white"
               }`}
             >
@@ -140,7 +140,7 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
           <Link
             href="/staff"
             onClick={() => onNavigate?.()}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold transition-colors ${
               pathname === "/staff" ? "bg-white text-[#4338CA] shadow-md" : "text-white/70 hover:bg-white/10 hover:text-white"
             }`}
           >
@@ -155,18 +155,18 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
             <SyncStatusBadge pendingCount={pendingCount} />
           </div>
         )}
-        <div className="ks-mono text-[11px] text-white/40 px-3.5 pb-2">{todayStr()}</div>
+        <div className="ks-mono text-[10px] italic text-white/40 px-3.5 pb-2">{todayStr()}</div>
         {isOwner && (
           <button
             onClick={onOpenSettings}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white/70 hover:bg-white/10 hover:text-white"
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold text-white/70 hover:bg-white/10 hover:text-white"
           >
             <Settings size={17} /> Store settings
           </button>
         )}
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white/70 hover:bg-white/10 hover:text-white"
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold text-white/70 hover:bg-white/10 hover:text-white"
         >
           <LogOut size={17} /> Sign out
         </button>
