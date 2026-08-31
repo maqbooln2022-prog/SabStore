@@ -88,6 +88,16 @@ schema are in `supabase/migrations/001` through `004`.
 - **Staff management** (owner-only) — add/edit/remove staff, set a name,
   PIN, and per-module permission checklist; staff sign in from a dedicated
   "staff" tab on the login page using their staff code + PIN.
+- **Atomic stock updates** — selling an item or adjusting stock goes
+  through a row-locked Postgres RPC (`sell_items`/`adjust_stock`,
+  `supabase/migrations/005`) instead of a plain client read-then-write, so
+  two concurrent sales of the same item can't both oversell it. Sales now
+  also log a `movements` row, same as manual stock adjustments.
+- **Offline write queue** — bill/credit inserts and both stock RPCs go
+  through `lib/offlineQueue.js`, which queues to localStorage when the
+  device is offline (or a request can't reach the network) and retries on
+  reconnect, with a sidebar badge showing pending-sync count. Not a full
+  sync engine — no conflict resolution, last-write-wins.
 
 ## Security posture
 
@@ -113,7 +123,10 @@ A full review was done and all findings fixed:
   deep links (pre-fills a message, owner taps send manually), not
   automatic sending. Correct for phase 1 per `PROJECT_BRIEF.md`.
 - **Low-stock alerts** are in-app only; no push/SMS channel yet.
-- No offline-first sync — needs a real internet connection.
+- **Offline support is partial** — bill/credit inserts and stock updates
+  queue and retry, but that's a localStorage retry queue, not real
+  offline-first sync: no conflict resolution, and other reads/pages still
+  need a connection.
 - Rate limiting is in-memory per serverless instance, not a durable/
   distributed limiter — fine as a speed bump, not for a serious attack.
 
