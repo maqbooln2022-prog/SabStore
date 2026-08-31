@@ -23,7 +23,7 @@ export default function InventoryPage() {
 
 function InventoryPageInner() {
   const router = useRouter();
-  const { supabase, activeShopId, showToast } = useShop();
+  const { supabase, activeShopId, showToast, runQueued } = useShop();
   const [items, setItems] = useState([]);
   const [bills, setBills] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -105,30 +105,34 @@ function InventoryPageInner() {
   }
 
   async function logMovement(item, type, qty, reason, supplier) {
-    const newStock = type === "in" ? Number(item.stock) + qty : Math.max(0, Number(item.stock) - qty);
-    const { data: updated, error: updateError } = await supabase
-      .from("shop_products")
-      .update({ stock: newStock })
-      .eq("id", item.id)
-      .select("*, product:products(*)")
-      .single();
-    if (updateError) throw updateError;
-
-    const { error: moveError } = await supabase.from("movements").insert({
-      shop_id: activeShopId,
-      shop_product_id: item.id,
-      item_name: item.name,
-      type,
-      qty,
-      reason,
-      supplier: supplier || null,
+    const result = await runQueued({
+      type: "rpc",
+      fn: "adjust_stock",
+      args: {
+        p_shop_id: activeShopId,
+        p_shop_product_id: item.id,
+        p_type: type,
+        p_qty: qty,
+        p_reason: reason,
+        p_supplier: supplier || null,
+      },
     });
-    if (moveError) throw moveError;
 
-    const merged = flattenShopProduct(updated);
-    setItems((prev) => prev.map((p) => (p.id === item.id ? merged : p)));
+    // Queued while offline — no server-confirmed stock yet, so apply the
+    // same math locally; it reconciles once the queue flushes for real.
+    const newStock = result.queued
+      ? type === "in"
+        ? Number(item.stock) + qty
+        : Math.max(0, Number(item.stock) - qty)
+      : result.data.stock;
+
+    setItems((prev) => prev.map((p) => (p.id === item.id ? { ...p, stock: newStock } : p)));
     setAdjustItem(null);
-    showToast(`${type === "in" ? "Stock added" : "Stock removed"}: ${item.name}`);
+    showToast(
+      result.queued
+        ? `${type === "in" ? "Stock added" : "Stock removed"} (offline — will sync): ${item.name}`
+        : `${type === "in" ? "Stock added" : "Stock removed"}: ${item.name}`
+    );
   }
 
   if (loading) {

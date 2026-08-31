@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import ShopTypeIcon from "@/components/ShopTypeIcon";
+import SyncStatusBadge from "@/components/SyncStatusBadge";
 import { shopTypeInfo } from "@/lib/shopTypes";
 import { greeting, displayName } from "@/lib/format";
 
@@ -39,7 +40,7 @@ const NAV_ITEMS = [
 const todayStr = () => new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
 export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
-  const { supabase, shops, activeShop, activeShopId, setActiveShopId, user, isOwner, hasPermission } = useShop();
+  const { supabase, shops, activeShop, activeShopId, setActiveShopId, user, isOwner, hasPermission, pendingCount } = useShop();
   const pathname = usePathname();
   const router = useRouter();
   const [lowStockCount, setLowStockCount] = useState(0);
@@ -147,6 +148,11 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
       </nav>
 
       <div className="p-3 border-t border-white/10">
+        {pendingCount > 0 && (
+          <div className="px-3.5 pb-2">
+            <SyncStatusBadge pendingCount={pendingCount} />
+          </div>
+        )}
         <div className="ks-mono text-[11px] text-white/40 px-3.5 pb-2">{todayStr()}</div>
         {isOwner && (
           <button

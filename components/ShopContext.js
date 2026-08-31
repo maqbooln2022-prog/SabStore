@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { createClient } from "@/lib/supabaseClient";
 import { seedItemsForShop } from "@/lib/shopTypes";
 import { defaultPermissions } from "@/lib/modules";
+import { useOfflineQueue } from "@/lib/offlineQueue";
 
 const ShopContext = createContext(null);
 
@@ -17,6 +18,7 @@ export function ShopProvider({ children }) {
   const [toast, setToast] = useState(null);
   const [user, setUser] = useState(null);
   const [currentMember, setCurrentMember] = useState(null);
+  const { run: runQueued, pendingCount } = useOfflineQueue(supabase);
 
   const showToast = useCallback((msg, tone = "ok") => {
     setToast({ msg, tone });
@@ -229,6 +231,8 @@ export function ShopProvider({ children }) {
         isOwner,
         hasPermission,
         callStaffApi,
+        runQueued,
+        pendingCount,
       }}
     >
       {children}

@@ -34,7 +34,7 @@ export default function BillingPage() {
 }
 
 function BillingPageInner() {
-  const { supabase, activeShopId, activeShop, showToast } = useShop();
+  const { supabase, activeShopId, activeShop, showToast, runQueued } = useShop();
   const [items, setItems] = useState([]);
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -175,44 +175,42 @@ function BillingPageInner() {
     try {
       const billNo = `KS-${1000 + bills.length + 1}`;
       const billItems = cart.map(({ shop_product_id, code, name, price, unit, gst, qty }) => ({ shop_product_id, code, name, price, unit, gst, qty }));
+      // Built client-side (including the id) so a queued/offline bill can
+      // be shown, printed, and sent immediately — it reconciles with the
+      // real row once runQueued's background flush actually writes it.
+      const bill = {
+        id: crypto.randomUUID(),
+        shop_id: activeShopId,
+        bill_no: billNo,
+        customer_name: customer.name || null,
+        customer_phone: cleanPhone || null,
+        items: billItems,
+        subtotal,
+        discount_amount: discountAmount,
+        total,
+        payment_type: billType,
+        date: new Date().toISOString(),
+      };
 
-      const { data: bill, error: billError } = await supabase
-        .from("bills")
-        .insert({
-          shop_id: activeShopId,
-          bill_no: billNo,
-          customer_name: customer.name || null,
-          customer_phone: cleanPhone || null,
-          items: billItems,
-          subtotal,
-          discount_amount: discountAmount,
-          total,
-          payment_type: billType,
-        })
-        .select()
-        .single();
-      if (billError) throw billError;
-
-      for (const line of cart) {
-        const current = items.find((p) => p.id === line.shop_product_id);
-        if (!current) continue;
-        const { error: stockError } = await supabase
-          .from("shop_products")
-          .update({ stock: Math.max(0, current.stock - line.qty) })
-          .eq("id", line.shop_product_id);
-        if (stockError) throw stockError;
-      }
+      const billResult = await runQueued({ type: "insert", table: "bills", rows: [bill] });
+      const stockResult = await runQueued({
+        type: "rpc",
+        fn: "sell_items",
+        args: { p_shop_id: activeShopId, p_lines: billItems },
+      });
+      const offline = billResult.queued || stockResult.queued;
 
       if (billType === "credit") {
-        const { error: creditError } = await supabase.from("credits").insert({
-          shop_id: activeShopId,
-          phone: cleanPhone,
-          name: customer.name || "Customer",
-          amount: total,
-          type: "charge",
-          note: `Bill ${billNo}`,
+        await runQueued({
+          type: "insert",
+          table: "credits",
+          rows: [{ shop_id: activeShopId, phone: cleanPhone, name: customer.name || "Customer", amount: total, type: "charge", note: `Bill ${billNo}` }],
         });
-        if (creditError) throw creditError;
+      }
+
+      if (offline) {
+        showToast("You're offline — this bill will sync automatically once you're back online", "warn");
+      } else if (billType === "credit") {
         showToast(`Bill generated on udhaar — ${rupee(total)} added to ${customer.name || "customer"}'s balance`);
       } else {
         showToast("Bill generated");
