@@ -98,6 +98,12 @@ schema are in `supabase/migrations/001` through `004`.
   device is offline (or a request can't reach the network) and retries on
   reconnect, with a sidebar badge showing pending-sync count. Not a full
   sync engine — no conflict resolution, last-write-wins.
+- **Platform admin page** (`/admin`, `supabase/migrations/006`) — a
+  global role separate from shop owner/staff, granted via a
+  `platform_admins` table (SQL-editor-only for now, no self-serve UI to
+  grant it). Shows every owner on the platform with their shops, signup
+  date, and bill counts; can suspend/reinstate an owner's login (real
+  Supabase Auth ban, not a UI flag) or delete any shop platform-wide.
 
 ## Security posture
 
@@ -116,9 +122,6 @@ A full review was done and all findings fixed:
 
 ## Known limitations / deferred
 
-- **Platform admin page** (managing shop owners across all of SabStore,
-  not just one owner's own shops) — explicitly deferred; the per-owner
-  staff panel above was built first.
 - **WhatsApp Cloud API** — bills/reminders/digests currently use `wa.me`
   deep links (pre-fills a message, owner taps send manually), not
   automatic sending. Correct for phase 1 per `PROJECT_BRIEF.md`.
