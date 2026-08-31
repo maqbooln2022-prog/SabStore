@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabaseClient";
 import { seedItemsForShop } from "@/lib/shopTypes";
 import { defaultPermissions } from "@/lib/modules";
 import { useOfflineQueue } from "@/lib/offlineQueue";
+import { callApi } from "@/lib/apiClient";
 
 const ShopContext = createContext(null);
 
@@ -18,6 +19,7 @@ export function ShopProvider({ children }) {
   const [toast, setToast] = useState(null);
   const [user, setUser] = useState(null);
   const [currentMember, setCurrentMember] = useState(null);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const { run: runQueued, pendingCount } = useOfflineQueue(supabase);
 
   const showToast = useCallback((msg, tone = "ok") => {
@@ -45,6 +47,24 @@ export function ShopProvider({ children }) {
     loadShops();
     supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
   }, [loadShops, supabase]);
+
+  // A global, non-shop-scoped role — most users will never be one, so
+  // this quietly resolves to false rather than blocking anything.
+  useEffect(() => {
+    if (!user) {
+      setIsPlatformAdmin(false);
+      return;
+    }
+    let active = true;
+    supabase
+      .rpc("is_platform_admin")
+      .then(({ data }) => {
+        if (active) setIsPlatformAdmin(!!data);
+      });
+    return () => {
+      active = false;
+    };
+  }, [supabase, user]);
 
   // Which shop_members row (role + permissions) the signed-in user holds
   // for the active shop — drives nav filtering and action gating.
@@ -82,23 +102,8 @@ export function ShopProvider({ children }) {
     else localStorage.removeItem(ACTIVE_SHOP_KEY);
   }
 
-  // Calls one of the app/api/staff/* routes with the current session's
-  // access token attached, so the server can verify who's asking.
   async function callStaffApi(path, body) {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const res = await fetch(path, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-      },
-      body: JSON.stringify(body),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "Request failed");
-    return json;
+    return callApi(supabase, path, body);
   }
 
   // By default a new shop starts empty — the owner adds their own items via
@@ -233,6 +238,7 @@ export function ShopProvider({ children }) {
         callStaffApi,
         runQueued,
         pendingCount,
+        isPlatformAdmin,
       }}
     >
       {children}

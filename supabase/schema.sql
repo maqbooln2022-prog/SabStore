@@ -480,3 +480,27 @@ $$;
 
 grant execute on function sell_items(uuid, jsonb) to authenticated;
 grant execute on function adjust_stock(uuid, uuid, text, numeric, text, text) to authenticated;
+
+-- =========================================================
+-- Platform admin — see migrations/006_platform_admin.sql for the full
+-- explanation. Separate from shop owner/staff; a global role for
+-- managing SabStore itself, not scoped to any shop.
+-- =========================================================
+
+create table platform_admins (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table platform_admins enable row level security;
+
+create or replace function is_platform_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from platform_admins where user_id = auth.uid());
+$$;
+
+grant execute on function is_platform_admin() to authenticated;
