@@ -29,8 +29,8 @@ function AppShell({ children }) {
 
   return (
     <div className="min-h-screen flex">
-      <div className="ks-no-print ks-mobile-bar fixed top-0 left-0 right-0 z-30 bg-[#000000] text-white items-center justify-between px-4 py-3">
-        <button onClick={() => setSidebarOpen(true)} className="w-8 h-8 flex items-center justify-center">
+      <div className="ks-no-print ks-mobile-bar fixed top-0 left-0 right-0 z-30 bg-white text-[#111827] items-center justify-between px-4 py-3 border-b border-[#E7E9F3] shadow-sm">
+        <button onClick={() => setSidebarOpen(true)} className="w-8 h-8 flex items-center justify-center text-[#4B5563]">
           <Menu size={20} />
         </button>
         <span className="text-sm font-bold truncate px-2">{activeShop?.name}</span>

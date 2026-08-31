@@ -72,46 +72,48 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
   const visibleNav = NAV_ITEMS.filter((item) => enabledModules.includes(item.key) && hasPermission(item.key));
 
   return (
-    <div className="h-full flex flex-col bg-[#000000] text-white">
-      <div className="p-4 border-b border-white/10 space-y-2">
-        <div className="flex items-center gap-2">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: "linear-gradient(135deg, #4F46E5, #818CF8)" }}
-          >
-            <ShopTypeIcon type={activeShop.type} size={17} />
+    <div className="h-full flex flex-col bg-white text-[#111827] border-r border-[#E7E9F3]">
+      <div className="p-4 space-y-3">
+        <div
+          className="rounded-2xl p-3 space-y-2.5 shadow-sm"
+          style={{ background: "linear-gradient(135deg, #4F46E5, #818CF8)" }}
+        >
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0 text-white">
+              <ShopTypeIcon type={activeShop.type} size={17} />
+            </div>
+            <div className="relative flex-1 min-w-0">
+              <select
+                value={activeShopId}
+                onChange={(e) => setActiveShopId(e.target.value)}
+                className="w-full appearance-none rounded-xl pl-3 pr-8 py-2 text-sm font-bold bg-white/15 text-white border border-white/25 focus:outline-none focus:border-white/60"
+              >
+                {shops.map((s) => (
+                  <option key={s.id} value={s.id} style={{ color: "#000" }}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={15} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-white/70" />
+            </div>
           </div>
-          <div className="relative flex-1 min-w-0">
-            <select
-              value={activeShopId}
-              onChange={(e) => setActiveShopId(e.target.value)}
-              className="w-full appearance-none rounded-xl pl-3 pr-8 py-2 text-sm font-bold bg-white/10 text-white border border-white/15 focus:outline-none focus:border-white/40"
-            >
-              {shops.map((s) => (
-                <option key={s.id} value={s.id} style={{ color: "#000" }}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={15} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-white/50" />
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[11px] text-white/80 font-medium">{shopTypeInfo(activeShop.type).label}</span>
+            {isOwner && (
+              <button onClick={onAddShop} className="flex items-center gap-1 text-[11px] font-bold text-white">
+                <Plus size={12} /> Add shop
+              </button>
+            )}
           </div>
         </div>
-        <div className="flex items-center justify-between px-1">
-          <span className="text-[11px] text-white/50">{shopTypeInfo(activeShop.type).label}</span>
-          {isOwner && (
-            <button onClick={onAddShop} className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: "#818CF8" }}>
-              <Plus size={12} /> Add shop
-            </button>
-          )}
-        </div>
+
+        <p className="px-1 text-xs text-[#6B7280]">
+          {greeting()}
+          {displayName(user) ? `, ${displayName(user)}` : ""} 👋
+        </p>
       </div>
 
-      <p className="px-5 pt-3 text-xs text-white/40">
-        {greeting()}
-        {displayName(user) ? `, ${displayName(user)}` : ""} 👋
-      </p>
-
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto ks-scroll">
+      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto ks-scroll">
         {visibleNav.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href;
@@ -121,7 +123,7 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
               href={item.href}
               onClick={() => onNavigate?.()}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                active ? "bg-[#4F46E5] text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
+                active ? "bg-[#4F46E5] text-white shadow-sm" : "text-[#4B5563] hover:bg-[#F3F4FF] hover:text-[#111827]"
               }`}
             >
               <Icon size={17} />
@@ -139,7 +141,7 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
             href="/staff"
             onClick={() => onNavigate?.()}
             className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-              pathname === "/staff" ? "bg-[#4F46E5] text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
+              pathname === "/staff" ? "bg-[#4F46E5] text-white shadow-sm" : "text-[#4B5563] hover:bg-[#F3F4FF] hover:text-[#111827]"
             }`}
           >
             <Users size={17} /> Staff
@@ -147,24 +149,24 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
         )}
       </nav>
 
-      <div className="p-3 border-t border-white/10">
+      <div className="p-3 border-t border-[#E7E9F3]">
         {pendingCount > 0 && (
           <div className="px-3.5 pb-2">
             <SyncStatusBadge pendingCount={pendingCount} />
           </div>
         )}
-        <div className="ks-mono text-[11px] text-white/40 px-3.5 pb-2">{todayStr()}</div>
+        <div className="ks-mono text-[11px] text-[#9CA3AF] px-3.5 pb-2">{todayStr()}</div>
         {isOwner && (
           <button
             onClick={onOpenSettings}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-[#4B5563] hover:bg-[#F3F4FF] hover:text-[#111827]"
           >
             <Settings size={17} /> Store settings
           </button>
         )}
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-[#4B5563] hover:bg-[#F3F4FF] hover:text-[#111827]"
         >
           <LogOut size={17} /> Sign out
         </button>
