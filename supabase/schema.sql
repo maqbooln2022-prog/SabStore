@@ -504,3 +504,35 @@ as $$
 $$;
 
 grant execute on function is_platform_admin() to authenticated;
+
+-- Admin-driven ownership transfer — see migrations/007 for why this is
+-- NOT granted to `authenticated`. Only callable via the service-role
+-- key (app/api/admin/transfer-ownership), which does its own
+-- requireAdmin() check before ever reaching this function.
+create or replace function admin_transfer_shop_ownership(p_shop_id uuid, p_new_owner_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_old_owner_id uuid;
+begin
+  select owner_id into v_old_owner_id from shops where id = p_shop_id;
+  if v_old_owner_id is null then
+    raise exception 'shop not found';
+  end if;
+
+  if v_old_owner_id = p_new_owner_id then
+    raise exception 'that member is already the owner';
+  end if;
+
+  if not exists (select 1 from shop_members where shop_id = p_shop_id and user_id = p_new_owner_id) then
+    raise exception 'target user is not a member of this shop';
+  end if;
+
+  update shops set owner_id = p_new_owner_id where id = p_shop_id;
+  update shop_members set role = 'staff' where shop_id = p_shop_id and user_id = v_old_owner_id;
+  update shop_members set role = 'owner' where shop_id = p_shop_id and user_id = p_new_owner_id;
+end;
+$$;
