@@ -98,12 +98,17 @@ schema are in `supabase/migrations/001` through `004`.
   device is offline (or a request can't reach the network) and retries on
   reconnect, with a sidebar badge showing pending-sync count. Not a full
   sync engine — no conflict resolution, last-write-wins.
-- **Platform admin page** (`/admin`, `supabase/migrations/006`) — a
-  global role separate from shop owner/staff, granted via a
+- **Platform admin page** (`/admin`, `supabase/migrations/006`-`007`) —
+  a global role separate from shop owner/staff, granted via a
   `platform_admins` table (SQL-editor-only for now, no self-serve UI to
   grant it). Shows every owner on the platform with their shops, signup
-  date, and bill counts; can suspend/reinstate an owner's login (real
-  Supabase Auth ban, not a UI flag) or delete any shop platform-wide.
+  date, bill counts, and each shop's full member roster (owner + staff,
+  with platform-wide and per-shop owner/staff login counts). Can
+  suspend/reinstate an owner's login (real Supabase Auth ban, not a UI
+  flag), delete any shop platform-wide, edit any member's name/
+  permissions/password, or transfer a shop's ownership to a different
+  existing member (one atomic Postgres function moves `shops.owner_id`
+  and both members' roles together, so a shop can't end up ownerless).
 
 ## Security posture
 
