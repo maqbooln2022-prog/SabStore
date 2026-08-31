@@ -72,12 +72,12 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
   const visibleNav = NAV_ITEMS.filter((item) => enabledModules.includes(item.key) && hasPermission(item.key));
 
   return (
-    <div className="h-full flex flex-col bg-white text-[#111827] border-r border-[#E7E9F3]">
+    <div
+      className="h-full flex flex-col text-white"
+      style={{ background: "linear-gradient(190deg, #4F46E5 0%, #4338CA 45%, #2C2478 100%)" }}
+    >
       <div className="p-4 space-y-3">
-        <div
-          className="rounded-2xl p-3 space-y-2.5 shadow-sm"
-          style={{ background: "linear-gradient(135deg, #4F46E5, #818CF8)" }}
-        >
+        <div className="rounded-2xl p-3 space-y-2.5 bg-white/10 border border-white/15 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0 text-white">
               <ShopTypeIcon type={activeShop.type} size={17} />
@@ -98,7 +98,7 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
             </div>
           </div>
           <div className="flex items-center justify-between px-1">
-            <span className="text-[11px] text-white/80 font-medium">{shopTypeInfo(activeShop.type).label}</span>
+            <span className="text-[11px] text-white/70 font-medium">{shopTypeInfo(activeShop.type).label}</span>
             {isOwner && (
               <button onClick={onAddShop} className="flex items-center gap-1 text-[11px] font-bold text-white">
                 <Plus size={12} /> Add shop
@@ -107,7 +107,7 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
           </div>
         </div>
 
-        <p className="px-1 text-xs text-[#6B7280]">
+        <p className="px-1 text-xs text-white/60">
           {greeting()}
           {displayName(user) ? `, ${displayName(user)}` : ""} 👋
         </p>
@@ -123,7 +123,7 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
               href={item.href}
               onClick={() => onNavigate?.()}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                active ? "bg-[#4F46E5] text-white shadow-sm" : "text-[#4B5563] hover:bg-[#F3F4FF] hover:text-[#111827]"
+                active ? "bg-white text-[#4338CA] shadow-md" : "text-white/70 hover:bg-white/10 hover:text-white"
               }`}
             >
               <Icon size={17} />
@@ -141,7 +141,7 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
             href="/staff"
             onClick={() => onNavigate?.()}
             className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-              pathname === "/staff" ? "bg-[#4F46E5] text-white shadow-sm" : "text-[#4B5563] hover:bg-[#F3F4FF] hover:text-[#111827]"
+              pathname === "/staff" ? "bg-white text-[#4338CA] shadow-md" : "text-white/70 hover:bg-white/10 hover:text-white"
             }`}
           >
             <Users size={17} /> Staff
@@ -149,24 +149,24 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
         )}
       </nav>
 
-      <div className="p-3 border-t border-[#E7E9F3]">
+      <div className="p-3 border-t border-white/15">
         {pendingCount > 0 && (
           <div className="px-3.5 pb-2">
             <SyncStatusBadge pendingCount={pendingCount} />
           </div>
         )}
-        <div className="ks-mono text-[11px] text-[#9CA3AF] px-3.5 pb-2">{todayStr()}</div>
+        <div className="ks-mono text-[11px] text-white/40 px-3.5 pb-2">{todayStr()}</div>
         {isOwner && (
           <button
             onClick={onOpenSettings}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-[#4B5563] hover:bg-[#F3F4FF] hover:text-[#111827]"
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white/70 hover:bg-white/10 hover:text-white"
           >
             <Settings size={17} /> Store settings
           </button>
         )}
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-[#4B5563] hover:bg-[#F3F4FF] hover:text-[#111827]"
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white/70 hover:bg-white/10 hover:text-white"
         >
           <LogOut size={17} /> Sign out
         </button>
