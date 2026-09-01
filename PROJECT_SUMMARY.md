@@ -1,10 +1,17 @@
 # SabStore — Project Summary
 
-Current state of the build, as of 2026-08-30. `PROJECT_BRIEF.md` and
+Current state of the build, as of 2026-09-01. `PROJECT_BRIEF.md` and
 `README.md` describe the original plan; this file describes what actually
 exists now, since the two have diverged (most notably the shared-catalog
-data model and the staff/roles system, neither of which were in the
-original brief).
+data model, the staff/roles system, and the multi-store/vendor-payables
+features below, none of which were in the original brief).
+
+Note: the multi-store combined dashboard and vendor payables were
+originally scoped as a separate app ("Store Manager", its own spec —
+see git history around 2026-09-01 for `app-summary.md`) before being
+folded into SabStore's own owner dashboard instead, on the reasoning
+that SabStore already has the login, multi-shop model, and most of the
+underlying data these features needed.
 
 ## What it is
 
@@ -81,10 +88,18 @@ schema are in `supabase/migrations/001` through `004`.
   payments, WhatsApp reminders.
 - **Day Close** — daily cash reconciliation and personal draw log.
 - **Expenses** and **Cashbook**.
-- **Suppliers** — owner-level supplier list, linked per shop.
+- **Suppliers** — owner-level supplier list, linked per shop, each link
+  carrying its own payable balance (`shop_suppliers.owed` —
+  `supabase/migrations/008`): log a purchase (increases owed, goods on
+  credit), record a payment (decreases owed, logs a real cash-out that
+  flows into Cashbook automatically via the `expenses` table), or log a
+  return/debit note (decreases owed, no cash movement).
 - **Dashboard** — today's sales/profit hero, clickable stat cards (items in
   stock, stock value, low stock, today's profit) with detail breakdowns,
   an "Add items" shortcut when a shop's inventory is empty, top customers.
+  Owners with 2+ shops also see a combined-profit summary above this —
+  a per-shop card grid (today's profit per shop); clicking a card
+  switches the active shop shown below.
 - **Staff management** (owner-only) — add/edit/remove staff, set a name,
   PIN, and per-module permission checklist; staff sign in from a dedicated
   "staff" tab on the login page using their staff code + PIN.
