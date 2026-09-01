@@ -17,12 +17,13 @@ import { useShop } from "@/components/ShopContext";
 import StatCard from "@/components/StatCard";
 import StatDetailModal from "@/components/StatDetailModal";
 import CustomerDetailModal from "@/components/CustomerDetailModal";
+import MultiStoreSummary from "@/components/MultiStoreSummary";
 import { rupee, greeting, displayName } from "@/lib/format";
 import { customerBalance, topCustomers } from "@/lib/dashboardHelpers";
 import { fetchShopItems } from "@/lib/products";
 
 export default function DashboardPage() {
-  const { supabase, activeShopId, activeShop, user } = useShop();
+  const { supabase, shops, activeShopId, activeShop, setActiveShopId, user } = useShop();
   const router = useRouter();
   const [items, setItems] = useState([]);
   const [bills, setBills] = useState([]);
@@ -89,6 +90,10 @@ export default function DashboardPage() {
 
   return (
     <div className="pt-6">
+      {shops.length > 1 && (
+        <MultiStoreSummary supabase={supabase} shops={shops} activeShopId={activeShopId} onSelectShop={setActiveShopId} />
+      )}
+
       <div className="ks-hero p-6 sm:p-7 mb-4">
         <div className="relative flex items-start justify-between flex-wrap gap-4">
           <div>
