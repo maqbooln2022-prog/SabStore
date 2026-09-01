@@ -167,6 +167,7 @@ create index suppliers_owner_id_idx on suppliers(owner_id);
 create table shop_suppliers (
   shop_id uuid not null references shops(id) on delete cascade,
   supplier_id uuid not null references suppliers(id) on delete cascade,
+  owed numeric(12,2) not null default 0,  -- what this shop owes this supplier
   primary key (shop_id, supplier_id)
 );
 
@@ -353,6 +354,8 @@ create policy "Members with suppliers permission can insert shop_suppliers" on s
   with check (has_shop_permission(shop_id, 'suppliers'));
 create policy "Members with suppliers permission can delete shop_suppliers" on shop_suppliers for delete
   using (has_shop_permission(shop_id, 'suppliers'));
+create policy "Members with suppliers permission can update shop_suppliers" on shop_suppliers for update
+  using (has_shop_permission(shop_id, 'suppliers')) with check (has_shop_permission(shop_id, 'suppliers'));
 
 create policy "Members can view movements" on movements for select
   using (is_shop_member(shop_id));
