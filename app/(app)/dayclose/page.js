@@ -57,7 +57,16 @@ function DayClosePageInner() {
   }, [draws]);
   const todaysDraws = todaysDrawList.reduce((s, d) => s + d.amount, 0);
 
-  const expectedCash = todaysCashSales - todaysDraws;
+  // The counted cash from the most recent PRIOR close carries forward as
+  // today's starting float — reconciliations is already ordered newest
+  // first, so this is just "the newest one that isn't today's own."
+  const openingFloat = useMemo(() => {
+    const t = new Date().toDateString();
+    const past = reconciliations.filter((r) => new Date(r.date).toDateString() !== t);
+    return past.length > 0 ? Number(past[0].cash_counted) : 0;
+  }, [reconciliations]);
+
+  const expectedCash = openingFloat + todaysCashSales - todaysDraws;
   const diff = cashCounted !== "" ? Number(cashCounted) - expectedCash : null;
 
   async function saveClose() {
@@ -105,6 +114,10 @@ function DayClosePageInner() {
       <div className="space-y-4">
         <div className="ks-card p-5">
           <h2 className="ks-display font-bold mb-4">Today&apos;s cash reconciliation</h2>
+          <div className="flex items-center justify-between text-sm mb-2">
+            <span className="text-[#6B7280] font-medium">Opening float (from last close)</span>
+            <span className="ks-mono font-bold">{rupee(openingFloat)}</span>
+          </div>
           <div className="flex items-center justify-between text-sm mb-2">
             <span className="text-[#6B7280] font-medium">Cash sales today (app)</span>
             <span className="ks-mono font-bold">{rupee(todaysCashSales)}</span>
