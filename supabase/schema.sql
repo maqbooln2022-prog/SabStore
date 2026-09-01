@@ -146,11 +146,25 @@ create table draws (
 create table expenses (
   id uuid primary key default uuid_generate_v4(),
   shop_id uuid not null references shops(id) on delete cascade,
-  category text not null,              -- Rent / Electricity / Staff salary / Transport / Maintenance / Other
+  category text not null,              -- Rent / Electricity / Staff salary / Transport / Maintenance / Subscription / Loan/EMI / Other
   amount numeric(12,2) not null,
   note text,
   date timestamptz not null default now()
 );
+
+-- ---------- Fixed monthly costs (standing recurring definitions —
+-- rent, salaries, subscriptions — not tied to a single payment event,
+-- unlike `expenses` above) ----------
+create table fixed_expenses (
+  id uuid primary key default uuid_generate_v4(),
+  shop_id uuid not null references shops(id) on delete cascade,
+  name text not null,
+  category text not null,
+  amount numeric(12,2) not null,
+  due_day int not null check (due_day between 1 and 28),
+  created_at timestamptz not null default now()
+);
+create index fixed_expenses_shop_id_idx on fixed_expenses(shop_id);
 
 -- ---------- Suppliers (owner-level master, shared across shops) ----------
 create table suppliers (
@@ -294,6 +308,7 @@ alter table credits enable row level security;
 alter table reconciliations enable row level security;
 alter table draws enable row level security;
 alter table expenses enable row level security;
+alter table fixed_expenses enable row level security;
 alter table suppliers enable row level security;
 alter table shop_suppliers enable row level security;
 
@@ -386,6 +401,15 @@ create policy "Members can view expenses" on expenses for select
   using (is_shop_member(shop_id));
 create policy "Members with expenses permission can insert expenses" on expenses for insert
   with check (has_shop_permission(shop_id, 'expenses'));
+
+create policy "Members can view fixed_expenses" on fixed_expenses for select
+  using (is_shop_member(shop_id));
+create policy "Members with expenses permission can insert fixed_expenses" on fixed_expenses for insert
+  with check (has_shop_permission(shop_id, 'expenses'));
+create policy "Members with expenses permission can update fixed_expenses" on fixed_expenses for update
+  using (has_shop_permission(shop_id, 'expenses')) with check (has_shop_permission(shop_id, 'expenses'));
+create policy "Members with expenses permission can delete fixed_expenses" on fixed_expenses for delete
+  using (has_shop_permission(shop_id, 'expenses'));
 
 -- =========================================================
 -- Atomic stock operations — see migrations/005_atomic_stock_functions.sql

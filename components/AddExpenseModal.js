@@ -5,7 +5,16 @@ import { Loader2 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Field from "@/components/ui/Field";
 
-export const EXPENSE_CATEGORIES = ["Rent", "Electricity", "Staff salary", "Transport", "Maintenance", "Other"];
+export const EXPENSE_CATEGORIES = [
+  "Rent",
+  "Electricity",
+  "Staff salary",
+  "Transport",
+  "Maintenance",
+  "Subscription",
+  "Loan/EMI",
+  "Other",
+];
 
 export default function AddExpenseModal({ onClose, onAdd }) {
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
