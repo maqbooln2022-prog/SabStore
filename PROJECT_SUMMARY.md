@@ -87,7 +87,12 @@ schema are in `supabase/migrations/001` through `004`.
 - **Udhaar (credit) book** — per-customer running balance, record
   payments, WhatsApp reminders.
 - **Day Close** — daily cash reconciliation and personal draw log.
-- **Expenses** and **Cashbook**.
+- **Expenses** — a tab toggle between the original one-off expense log
+  and **fixed monthly costs** (`fixed_expenses`, `supabase/migrations/009`)
+  — standing recurring definitions (rent, salary, subscriptions: amount
+  + due day), separate from the log since they aren't tied to one
+  payment event.
+- **Cashbook**.
 - **Suppliers** — owner-level supplier list, linked per shop, each link
   carrying its own payable balance (`shop_suppliers.owed` —
   `supabase/migrations/008`): log a purchase (increases owed, goods on
