@@ -86,7 +86,11 @@ schema are in `supabase/migrations/001` through `004`.
 - **History** — past bills, searchable/filterable.
 - **Udhaar (credit) book** — per-customer running balance, record
   payments, WhatsApp reminders.
-- **Day Close** — daily cash reconciliation and personal draw log.
+- **Day Close** — daily cash reconciliation and personal draw log. The
+  expected-cash total now carries forward an opening float from the
+  most recent prior close's counted amount (no schema change — it's
+  just the newest `reconciliations` row that isn't today's own), rather
+  than assuming the till starts at zero every day.
 - **Expenses** — a tab toggle between the original one-off expense log
   and **fixed monthly costs** (`fixed_expenses`, `supabase/migrations/009`)
   — standing recurring definitions (rent, salary, subscriptions: amount
@@ -147,6 +151,16 @@ A full review was done and all findings fixed:
 
 ## Known limitations / deferred
 
+- **Cash vs. card/UPI/wallet split on bills** — the last piece of the
+  Store Manager till-reconciliation concept (tagging each payment as
+  cash-drawer vs. not, so Day Close's expected-cash math excludes
+  non-cash tender automatically). Bills currently only distinguish
+  `cash` vs. `credit` (udhaar); adding payment-method granularity means
+  changing the core Billing flow, which carries real regression risk to
+  already-verified, high-traffic functionality — deliberately not done
+  without a separate go-ahead. The other three Store Manager pieces
+  (combined dashboard, supplier payables, fixed costs, opening float)
+  didn't touch Billing at all.
 - **WhatsApp Cloud API** — bills/reminders/digests currently use `wa.me`
   deep links (pre-fills a message, owner taps send manually), not
   automatic sending. Correct for phase 1 per `PROJECT_BRIEF.md`.
