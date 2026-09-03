@@ -20,6 +20,8 @@ import {
   LogOut,
   ShieldCheck,
   Tag,
+  MoreHorizontal,
+  ChevronRight,
 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import ShopTypeIcon from "@/components/ShopTypeIcon";
@@ -39,6 +41,11 @@ const NAV_ITEMS = [
   { href: "/suppliers", key: "suppliers", label: "Suppliers", icon: Truck },
 ];
 
+// These four stay one tap away; everything else — including the
+// owner-only Staff/Clearance offers pages below — folds into "More" so
+// the nav doesn't force scrolling on a phone-sized drawer.
+const TOP_LEVEL_KEYS = ["dashboard", "billing", "inventory", "history"];
+
 const todayStr = () => new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
 export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
@@ -47,6 +54,7 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
   const pathname = usePathname();
   const router = useRouter();
   const [lowStockCount, setLowStockCount] = useState(0);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
     if (!activeShopId) return;
@@ -73,6 +81,37 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
 
   const enabledModules = activeShop.enabled_modules || NAV_ITEMS.map((i) => i.key);
   const visibleNav = NAV_ITEMS.filter((item) => enabledModules.includes(item.key) && hasPermission(item.key));
+  const topNav = visibleNav.filter((item) => TOP_LEVEL_KEYS.includes(item.key));
+  const moreNav = [
+    ...visibleNav.filter((item) => !TOP_LEVEL_KEYS.includes(item.key)),
+    ...(isOwner ? [{ href: "/staff", label: "Staff", icon: Users }] : []),
+    ...(isOwner ? [{ href: "/clearance", label: "Clearance offers", icon: Tag }] : []),
+  ];
+  const moreActive = moreNav.some((item) => item.href === pathname);
+  const showMore = moreOpen || moreActive;
+
+  function renderNavItem(item) {
+    const Icon = item.icon;
+    const active = pathname === item.href;
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={() => onNavigate?.()}
+        className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold transition-colors ${
+          active ? "bg-white text-[#4338CA] shadow-md" : "text-white/70 hover:bg-white/10 hover:text-white"
+        }`}
+      >
+        <Icon size={17} />
+        {item.label}
+        {item.href === "/inventory" && lowStockCount > 0 && (
+          <span className="ml-auto inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#E5484D] text-white text-[10px] font-bold">
+            {lowStockCount}
+          </span>
+        )}
+      </Link>
+    );
+  }
 
   return (
     <div
@@ -124,49 +163,21 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
       </div>
 
       <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto ks-scroll">
-        {visibleNav.map((item) => {
-          const Icon = item.icon;
-          const active = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => onNavigate?.()}
+        {topNav.map(renderNavItem)}
+        {moreNav.length > 0 && (
+          <>
+            <button
+              onClick={() => setMoreOpen((v) => !v)}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold transition-colors ${
-                active ? "bg-white text-[#4338CA] shadow-md" : "text-white/70 hover:bg-white/10 hover:text-white"
+                moreActive && !moreOpen ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
               }`}
             >
-              <Icon size={17} />
-              {item.label}
-              {item.href === "/inventory" && lowStockCount > 0 && (
-                <span className="ml-auto inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#E5484D] text-white text-[10px] font-bold">
-                  {lowStockCount}
-                </span>
-              )}
-            </Link>
-          );
-        })}
-        {isOwner && (
-          <Link
-            href="/staff"
-            onClick={() => onNavigate?.()}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold transition-colors ${
-              pathname === "/staff" ? "bg-white text-[#4338CA] shadow-md" : "text-white/70 hover:bg-white/10 hover:text-white"
-            }`}
-          >
-            <Users size={17} /> Staff
-          </Link>
-        )}
-        {isOwner && (
-          <Link
-            href="/clearance"
-            onClick={() => onNavigate?.()}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold transition-colors ${
-              pathname === "/clearance" ? "bg-white text-[#4338CA] shadow-md" : "text-white/70 hover:bg-white/10 hover:text-white"
-            }`}
-          >
-            <Tag size={17} /> Clearance offers
-          </Link>
+              <MoreHorizontal size={17} />
+              More
+              <ChevronRight size={14} className={`ml-auto transition-transform ${showMore ? "rotate-90" : ""}`} />
+            </button>
+            {showMore && <div className="space-y-1 pl-2">{moreNav.map(renderNavItem)}</div>}
+          </>
         )}
       </nav>
 
