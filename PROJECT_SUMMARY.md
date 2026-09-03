@@ -17,7 +17,7 @@ Note: a user-initials avatar badge was added to the sidebar/topbar as a UI
 polish pass, and the request that prompted it also named a batch of
 possible new features. Four were scoped and confirmed via follow-up
 questions: FIFO stock rotation (full batch tracking — built, see below),
-quick clearance offers (time-boxed discounts — not yet built), daily
+quick clearance offers (time-boxed discounts — built, see below), daily
 high-risk category tracking (items nearing expiry — built as part of FIFO
 batch tracking below, since it depends on the same per-batch expiry data),
 and deeper WhatsApp Business API integration (not yet built — owner has
@@ -138,6 +138,18 @@ schema are in `supabase/migrations/001` through `004`.
   listing any batch expiring within 14 days across the active shop, so an
   owner sees what to discount or pull before it's wasted, without having
   to open every item individually.
+- **Quick clearance offers** (`clearance_offers`/`clearance_offer_items`,
+  `supabase/migrations/011`) — owner-only page at `/clearance`: pick
+  items, a discount %, a start/end date. "Active" is computed purely from
+  today's date falling in that range — no enable flag, no cron job — so
+  Billing (any staff member with billing access) reads it live and the
+  discount auto-applies the day it starts and auto-reverts the day after
+  it ends. Billing shows the struck-through original price, the
+  discounted price, and a running "clearance savings" total; the actual
+  discounted price is what gets billed. The Dashboard's expiry risk card
+  has a "Run clearance offer" shortcut that deep-links into `/clearance`
+  with the at-risk items pre-selected, since expiring batches are the
+  obvious source of what to put on clearance.
 - **Offline write queue** — bill/credit inserts and both stock RPCs go
   through `lib/offlineQueue.js`, which queues to localStorage when the
   device is offline (or a request can't reach the network) and retries on
@@ -188,12 +200,6 @@ A full review was done and all findings fixed:
   integration (sending directly via the Meta WhatsApp Business API) is
   confirmed in scope for a future pass — the owner has API access, but
   the actual access token/phone number ID haven't been collected yet.
-- **Quick clearance offers** — confirmed in scope, not yet built: a
-  scheduled, time-boxed discount (pick items, a % off, a start/end date)
-  that auto-applies during billing while the window is open and reverts
-  automatically once it closes. Natural next step now that FIFO batch/
-  expiry tracking exists, since expiring batches are the obvious source
-  of what to put on clearance.
 - **Low-stock alerts** are in-app only; no push/SMS channel yet.
 - **Offline support is partial** — bill/credit inserts and stock updates
   queue and retry, but that's a localStorage retry queue, not real

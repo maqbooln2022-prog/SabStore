@@ -13,6 +13,7 @@ import {
   Users,
   Loader2,
   CalendarClock,
+  Tag,
 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import StatCard from "@/components/StatCard";
@@ -24,7 +25,7 @@ import { customerBalance, topCustomers } from "@/lib/dashboardHelpers";
 import { fetchShopItems } from "@/lib/products";
 
 export default function DashboardPage() {
-  const { supabase, shops, activeShopId, activeShop, setActiveShopId, user } = useShop();
+  const { supabase, shops, activeShopId, activeShop, setActiveShopId, user, isOwner } = useShop();
   const router = useRouter();
   const [items, setItems] = useState([]);
   const [bills, setBills] = useState([]);
@@ -144,9 +145,24 @@ export default function DashboardPage() {
 
       {expiringWithNames.length > 0 && (
         <div className="ks-card p-4 mb-4" style={{ borderLeft: "4px solid #C13F45" }}>
-          <div className="flex items-center gap-2 mb-2">
-            <CalendarClock size={16} style={{ color: "#C13F45" }} />
-            <h2 className="ks-display font-bold text-sm">Expiring soon — today&apos;s risk check</h2>
+          <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <CalendarClock size={16} style={{ color: "#C13F45" }} />
+              <h2 className="ks-display font-bold text-sm">Expiring soon — today&apos;s risk check</h2>
+            </div>
+            {isOwner && (
+              <button
+                onClick={() =>
+                  router.push(
+                    `/clearance?items=${[...new Set(expiringWithNames.map((b) => b.shop_product_id))].join(",")}`
+                  )
+                }
+                className="text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1"
+                style={{ background: "#C13F45", color: "#fff" }}
+              >
+                <Tag size={12} /> Run clearance offer
+              </button>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             {expiringWithNames.map((b) => (

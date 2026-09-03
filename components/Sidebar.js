@@ -19,6 +19,7 @@ import {
   Settings,
   LogOut,
   ShieldCheck,
+  Tag,
 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import ShopTypeIcon from "@/components/ShopTypeIcon";
@@ -154,6 +155,17 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
             }`}
           >
             <Users size={17} /> Staff
+          </Link>
+        )}
+        {isOwner && (
+          <Link
+            href="/clearance"
+            onClick={() => onNavigate?.()}
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold transition-colors ${
+              pathname === "/clearance" ? "bg-white text-[#4338CA] shadow-md" : "text-white/70 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            <Tag size={17} /> Clearance offers
           </Link>
         )}
       </nav>

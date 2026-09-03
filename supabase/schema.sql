@@ -98,6 +98,31 @@ create table stock_batches (
 create index stock_batches_shop_id_idx on stock_batches(shop_id);
 create index stock_batches_fifo_idx on stock_batches(shop_product_id, received_date);
 
+-- ---------- Clearance offers (time-boxed % discounts) ----------
+-- "Active" is purely start_date <= today <= end_date — no separate
+-- enable flag or cron job. Billing reads the date range live, so an
+-- offer auto-applies the day it starts and auto-reverts the day after
+-- it ends. See migrations/011_clearance_offers.sql for the full note.
+create table clearance_offers (
+  id uuid primary key default uuid_generate_v4(),
+  shop_id uuid not null references shops(id) on delete cascade,
+  name text not null default 'Clearance offer',
+  discount_pct numeric(5,2) not null check (discount_pct > 0 and discount_pct <= 90),
+  start_date date not null,
+  end_date date not null check (end_date >= start_date),
+  created_at timestamptz not null default now()
+);
+create index clearance_offers_shop_id_idx on clearance_offers(shop_id);
+
+create table clearance_offer_items (
+  id uuid primary key default uuid_generate_v4(),
+  offer_id uuid not null references clearance_offers(id) on delete cascade,
+  shop_product_id uuid not null references shop_products(id) on delete cascade,
+  unique (offer_id, shop_product_id)
+);
+create index clearance_offer_items_offer_id_idx on clearance_offer_items(offer_id);
+create index clearance_offer_items_shop_product_id_idx on clearance_offer_items(shop_product_id);
+
 -- ---------- Stock movements (in/out log) ----------
 create table movements (
   id uuid primary key default uuid_generate_v4(),
@@ -330,6 +355,8 @@ alter table draws enable row level security;
 alter table expenses enable row level security;
 alter table fixed_expenses enable row level security;
 alter table stock_batches enable row level security;
+alter table clearance_offers enable row level security;
+alter table clearance_offer_items enable row level security;
 alter table suppliers enable row level security;
 alter table shop_suppliers enable row level security;
 
@@ -436,6 +463,22 @@ create policy "Members with expenses permission can delete fixed_expenses" on fi
 -- adjust_stock() below.
 create policy "Members can view stock_batches" on stock_batches for select
   using (is_shop_member(shop_id));
+
+-- Any member can view (billing needs to price against active offers);
+-- only the owner manages them.
+create policy "Members can view clearance_offers" on clearance_offers for select
+  using (is_shop_member(shop_id));
+create policy "Owners can insert clearance_offers" on clearance_offers for insert
+  with check (is_shop_owner(shop_id));
+create policy "Owners can delete clearance_offers" on clearance_offers for delete
+  using (is_shop_owner(shop_id));
+
+create policy "Members can view clearance_offer_items" on clearance_offer_items for select
+  using (exists (select 1 from clearance_offers co where co.id = offer_id and is_shop_member(co.shop_id)));
+create policy "Owners can insert clearance_offer_items" on clearance_offer_items for insert
+  with check (exists (select 1 from clearance_offers co where co.id = offer_id and is_shop_owner(co.shop_id)));
+create policy "Owners can delete clearance_offer_items" on clearance_offer_items for delete
+  using (exists (select 1 from clearance_offers co where co.id = offer_id and is_shop_owner(co.shop_id)));
 
 -- =========================================================
 -- Atomic stock operations — see migrations/005_atomic_stock_functions.sql

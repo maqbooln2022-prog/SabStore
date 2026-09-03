@@ -23,6 +23,7 @@ import { rupee } from "@/lib/format";
 import { whatsappLink, billMessageText, taxBreakup } from "@/lib/messaging";
 import { parseSpokenQuantity, matchItemFromSpeech } from "@/lib/voiceHelpers";
 import { fetchShopItems } from "@/lib/products";
+import { fetchActiveOffers, activeDiscountMap, clearancePrice } from "@/lib/clearance";
 import ModuleGuard from "@/components/ModuleGuard";
 
 export default function BillingPage() {
@@ -37,6 +38,7 @@ function BillingPageInner() {
   const { supabase, activeShopId, activeShop, showToast, runQueued } = useShop();
   const [items, setItems] = useState([]);
   const [bills, setBills] = useState([]);
+  const [discountMap, setDiscountMap] = useState(new Map());
   const [loading, setLoading] = useState(true);
 
   const [query, setQuery] = useState("");
@@ -57,12 +59,14 @@ function BillingPageInner() {
   const load = useCallback(async () => {
     if (!activeShopId) return;
     setLoading(true);
-    const [itemsData, { data: billsData }] = await Promise.all([
+    const [itemsData, { data: billsData }, offersData] = await Promise.all([
       fetchShopItems(supabase, activeShopId),
       supabase.from("bills").select("*").eq("shop_id", activeShopId).order("date", { ascending: false }),
+      fetchActiveOffers(supabase, activeShopId),
     ]);
     setItems(itemsData);
     setBills(billsData || []);
+    setDiscountMap(activeDiscountMap(offersData));
     setLoading(false);
   }, [supabase, activeShopId]);
 
@@ -70,11 +74,24 @@ function BillingPageInner() {
     load();
   }, [load]);
 
-  const quickItems = items.filter((i) => i.quick);
-  const categories = [...new Set(items.map((i) => i.category))];
-  const categoryItems = activeCategory ? items.filter((i) => i.category === activeCategory) : [];
+  // Items priced for sale right now — clearance offers whose date range
+  // covers today are baked in here so every tile, search result, and the
+  // voice-match list all see the discounted price with no separate path.
+  const pricedItems = useMemo(
+    () =>
+      items.map((i) => {
+        const offer = discountMap.get(i.id);
+        if (!offer) return i;
+        return { ...i, price: clearancePrice(i.price, offer.pct), originalPrice: i.price, clearancePct: offer.pct };
+      }),
+    [items, discountMap]
+  );
+
+  const quickItems = pricedItems.filter((i) => i.quick);
+  const categories = [...new Set(pricedItems.map((i) => i.category))];
+  const categoryItems = activeCategory ? pricedItems.filter((i) => i.category === activeCategory) : [];
   const results = query
-    ? items.filter((i) => i.name.toLowerCase().includes(query.toLowerCase()) || i.code === query.trim()).slice(0, 6)
+    ? pricedItems.filter((i) => i.name.toLowerCase().includes(query.toLowerCase()) || i.code === query.trim()).slice(0, 6)
     : [];
 
   const cleanPhone = (customer.phone || "").replace(/\D/g, "");
@@ -82,7 +99,7 @@ function BillingPageInner() {
   const isLoyal = previousVisits >= 3;
 
   function handleVoiceTranscript(transcript) {
-    const item = matchItemFromSpeech(items, transcript);
+    const item = matchItemFromSpeech(pricedItems, transcript);
     if (!item) return showToast(`Couldn't match "${transcript}" to an item`, "warn");
     const qty = parseSpokenQuantity(transcript, item.unit);
     if (qty && qty > 0) {
@@ -144,10 +161,38 @@ function BillingPageInner() {
         const capped = item.stock;
         return exists
           ? prev.map((c) => (c.shop_product_id === item.id ? { ...c, qty: capped } : c))
-          : [...prev, { shop_product_id: item.id, code: item.code, name: item.name, price: item.price, unit: item.unit, gst: item.gst, qty: capped, stock: item.stock }];
+          : [
+              ...prev,
+              {
+                shop_product_id: item.id,
+                code: item.code,
+                name: item.name,
+                price: item.price,
+                originalPrice: item.originalPrice || null,
+                clearancePct: item.clearancePct || null,
+                unit: item.unit,
+                gst: item.gst,
+                qty: capped,
+                stock: item.stock,
+              },
+            ];
       }
       if (exists) return prev.map((c) => (c.shop_product_id === item.id ? { ...c, qty: wanted } : c));
-      return [...prev, { shop_product_id: item.id, code: item.code, name: item.name, price: item.price, unit: item.unit, gst: item.gst, qty, stock: item.stock }];
+      return [
+        ...prev,
+        {
+          shop_product_id: item.id,
+          code: item.code,
+          name: item.name,
+          price: item.price,
+          originalPrice: item.originalPrice || null,
+          clearancePct: item.clearancePct || null,
+          unit: item.unit,
+          gst: item.gst,
+          qty,
+          stock: item.stock,
+        },
+      ];
     });
     setQuery("");
   }
@@ -166,6 +211,7 @@ function BillingPageInner() {
   const subtotal = cart.reduce((s, c) => s + c.qty * c.price, 0);
   const discountAmount = loyaltyDiscount ? Math.round(subtotal * 0.05) : 0;
   const total = subtotal - discountAmount;
+  const clearanceSavings = cart.reduce((s, c) => s + (c.originalPrice ? (c.originalPrice - c.price) * c.qty : 0), 0);
 
   async function generateBill() {
     if (cart.length === 0) return;
@@ -272,8 +318,14 @@ function BillingPageInner() {
                       </span>
                       {r.name}
                     </div>
+                    {r.clearancePct && (
+                      <span className="ks-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "#C13F45", color: "#fff" }}>
+                        −{r.clearancePct}%
+                      </span>
+                    )}
                   </div>
                   <div className="ks-mono text-xs text-[#6B7280] mt-1">
+                    {r.originalPrice && <span className="line-through mr-1">{rupee(r.originalPrice)}</span>}
                     {rupee(r.price)} · {r.stock} {r.unit} left
                   </div>
                 </button>
@@ -313,8 +365,14 @@ function BillingPageInner() {
                       {r.code}
                     </span>
                     <span className="font-medium">{r.name}</span>
+                    {r.clearancePct && (
+                      <span className="ks-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#C13F45", color: "#fff" }}>
+                        −{r.clearancePct}%
+                      </span>
+                    )}
                   </span>
                   <span className="ks-mono text-xs text-[#6B7280]">
+                    {r.originalPrice && <span className="line-through mr-1">{rupee(r.originalPrice)}</span>}
                     {rupee(r.price)} · {r.stock} {r.unit} left
                   </span>
                 </button>
@@ -379,8 +437,14 @@ function BillingPageInner() {
                     {r.code}
                   </span>
                   <span className="font-semibold text-sm leading-tight">{r.name}</span>
+                  {r.clearancePct && (
+                    <span className="ks-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "#C13F45", color: "#fff" }}>
+                      −{r.clearancePct}%
+                    </span>
+                  )}
                 </div>
                 <div className="ks-mono text-xs text-[#6B7280] mt-1">
+                  {r.originalPrice && <span className="line-through mr-1">{rupee(r.originalPrice)}</span>}
                   {rupee(r.price)} · {r.stock} {r.unit} left
                 </div>
               </button>
@@ -404,8 +468,16 @@ function BillingPageInner() {
                         {c.code}
                       </span>
                       {c.name}
+                      {c.clearancePct && (
+                        <span className="ml-1.5 ks-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#C13F45", color: "#fff" }}>
+                          −{c.clearancePct}%
+                        </span>
+                      )}
                     </td>
-                    <td className="px-2 py-3 ks-mono text-[#6B7280]">{rupee(c.price)}</td>
+                    <td className="px-2 py-3 ks-mono text-[#6B7280]">
+                      {c.originalPrice && <span className="line-through mr-1">{rupee(c.originalPrice)}</span>}
+                      {rupee(c.price)}
+                    </td>
                     <td className="px-2 py-3">
                       <div className="flex items-center gap-2">
                         <button onClick={() => updateQty(c.shop_product_id, c.qty - 1)} className="ks-qtybtn">
@@ -476,6 +548,12 @@ function BillingPageInner() {
           )}
 
           <div className="py-4 border-t border-b border-[#E7E9F3] mb-4 space-y-1.5">
+            {clearanceSavings > 0 && (
+              <div className="flex items-center justify-between text-xs" style={{ color: "#C13F45" }}>
+                <span>🏷️ Clearance savings</span>
+                <span className="ks-mono">−{rupee(clearanceSavings)}</span>
+              </div>
+            )}
             {discountAmount > 0 && (
               <div className="flex items-center justify-between text-xs text-[#6B7280]">
                 <span>Subtotal</span>
