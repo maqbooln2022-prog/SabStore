@@ -8,9 +8,10 @@ import Sidebar from "@/components/Sidebar";
 import { AddShopModal, AddShopOnboarding } from "@/components/AddShopModal";
 import StoreSettingsModal from "@/components/StoreSettingsModal";
 import Toast from "@/components/ui/Toast";
+import { initials } from "@/lib/format";
 
 function AppShell({ children }) {
-  const { shops, activeShop, addShop, loading, toast } = useShop();
+  const { shops, activeShop, addShop, loading, toast, user } = useShop();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAddShop, setShowAddShop] = useState(false);
   const [showStoreSettings, setShowStoreSettings] = useState(false);
@@ -30,9 +31,17 @@ function AppShell({ children }) {
   return (
     <div className="min-h-screen flex">
       <div className="ks-no-print ks-mobile-bar fixed top-0 left-0 right-0 z-30 bg-white text-[#111827] items-center justify-between px-4 py-3 border-b border-[#E7E9F3] shadow-sm">
-        <button onClick={() => setSidebarOpen(true)} className="w-8 h-8 flex items-center justify-center text-[#4B5563]">
-          <Menu size={20} />
-        </button>
+        <div className="flex items-center gap-2">
+          <span
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+            style={{ background: "linear-gradient(135deg, #4F46E5, #818CF8)" }}
+          >
+            {initials(user)}
+          </span>
+          <button onClick={() => setSidebarOpen(true)} className="w-8 h-8 flex items-center justify-center text-[#4B5563]">
+            <Menu size={20} />
+          </button>
+        </div>
         <span className="text-sm font-bold truncate px-2">{activeShop?.name}</span>
         <div style={{ width: 32 }} />
       </div>

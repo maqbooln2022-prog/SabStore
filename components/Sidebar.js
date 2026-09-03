@@ -24,7 +24,7 @@ import { useShop } from "@/components/ShopContext";
 import ShopTypeIcon from "@/components/ShopTypeIcon";
 import SyncStatusBadge from "@/components/SyncStatusBadge";
 import { shopTypeInfo } from "@/lib/shopTypes";
-import { greeting, displayName } from "@/lib/format";
+import { greeting, displayName, initials } from "@/lib/format";
 
 const NAV_ITEMS = [
   { href: "/dashboard", key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -109,10 +109,17 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
           </div>
         </div>
 
-        <p className="px-1 text-[11px] italic text-white/60">
-          {greeting()}
-          {displayName(user) ? `, ${displayName(user)}` : ""} 👋
-        </p>
+        <div className="flex items-center gap-2 px-1">
+          <span
+            className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 bg-white/20 border border-white/25"
+          >
+            {initials(user)}
+          </span>
+          <p className="text-[11px] italic text-white/60">
+            {greeting()}
+            {displayName(user) ? `, ${displayName(user)}` : ""} 👋
+          </p>
+        </div>
       </div>
 
       <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto ks-scroll">
