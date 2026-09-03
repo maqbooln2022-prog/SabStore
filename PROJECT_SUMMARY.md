@@ -1,6 +1,6 @@
 # SabStore — Project Summary
 
-Current state of the build, as of 2026-09-01. `PROJECT_BRIEF.md` and
+Current state of the build, as of 2026-09-03. `PROJECT_BRIEF.md` and
 `README.md` describe the original plan; this file describes what actually
 exists now, since the two have diverged (most notably the shared-catalog
 data model, the staff/roles system, and the multi-store/vendor-payables
@@ -12,6 +12,16 @@ see git history around 2026-09-01 for `app-summary.md`) before being
 folded into SabStore's own owner dashboard instead, on the reasoning
 that SabStore already has the login, multi-shop model, and most of the
 underlying data these features needed.
+
+Note: a user-initials avatar badge was added to the sidebar/topbar as a UI
+polish pass, and the request that prompted it also named a batch of
+possible new features. Four were scoped and confirmed via follow-up
+questions: FIFO stock rotation (full batch tracking — built, see below),
+quick clearance offers (time-boxed discounts — not yet built), daily
+high-risk category tracking (items nearing expiry — built as part of FIFO
+batch tracking below, since it depends on the same per-batch expiry data),
+and deeper WhatsApp Business API integration (not yet built — owner has
+API access but credentials haven't been collected yet).
 
 ## What it is
 
@@ -117,6 +127,17 @@ schema are in `supabase/migrations/001` through `004`.
   `supabase/migrations/005`) instead of a plain client read-then-write, so
   two concurrent sales of the same item can't both oversell it. Sales now
   also log a `movements` row, same as manual stock adjustments.
+- **FIFO batch tracking & expiry risk** (`stock_batches`,
+  `supabase/migrations/010`) — every "stock in" creates a dated batch row
+  (qty, cost, optional expiry, supplier); `adjust_stock`/`sell_items` were
+  extended to consume batches oldest-first under the same row lock used
+  for the stock update, so a sale or manual stock-out always draws down
+  the longest-sitting stock first. Inventory has a per-item "View batches"
+  panel (oldest batch flagged "NEXT TO SELL", used-up batches greyed out,
+  expiry color-coded). The Dashboard surfaces a "today's risk check" card
+  listing any batch expiring within 14 days across the active shop, so an
+  owner sees what to discount or pull before it's wasted, without having
+  to open every item individually.
 - **Offline write queue** — bill/credit inserts and both stock RPCs go
   through `lib/offlineQueue.js`, which queues to localStorage when the
   device is offline (or a request can't reach the network) and retries on
@@ -163,7 +184,16 @@ A full review was done and all findings fixed:
   didn't touch Billing at all.
 - **WhatsApp Cloud API** — bills/reminders/digests currently use `wa.me`
   deep links (pre-fills a message, owner taps send manually), not
-  automatic sending. Correct for phase 1 per `PROJECT_BRIEF.md`.
+  automatic sending. Correct for phase 1 per `PROJECT_BRIEF.md`. Deeper
+  integration (sending directly via the Meta WhatsApp Business API) is
+  confirmed in scope for a future pass — the owner has API access, but
+  the actual access token/phone number ID haven't been collected yet.
+- **Quick clearance offers** — confirmed in scope, not yet built: a
+  scheduled, time-boxed discount (pick items, a % off, a start/end date)
+  that auto-applies during billing while the window is open and reverts
+  automatically once it closes. Natural next step now that FIFO batch/
+  expiry tracking exists, since expiring batches are the obvious source
+  of what to put on clearance.
 - **Low-stock alerts** are in-app only; no push/SMS channel yet.
 - **Offline support is partial** — bill/credit inserts and stock updates
   queue and retry, but that's a localStorage retry queue, not real

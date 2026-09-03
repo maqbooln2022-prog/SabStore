@@ -12,6 +12,7 @@ import {
   ArrowDownCircle,
   Users,
   Loader2,
+  CalendarClock,
 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import StatCard from "@/components/StatCard";
@@ -29,6 +30,7 @@ export default function DashboardPage() {
   const [bills, setBills] = useState([]);
   const [movements, setMovements] = useState([]);
   const [credits, setCredits] = useState([]);
+  const [expiringBatches, setExpiringBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState(null); // 'items' | 'value' | 'low' | 'profit'
   const [customerDetail, setCustomerDetail] = useState(null);
@@ -36,16 +38,27 @@ export default function DashboardPage() {
   const load = useCallback(async () => {
     if (!activeShopId) return;
     setLoading(true);
-    const [itemsData, { data: billsData }, { data: movesData }, { data: creditsData }] = await Promise.all([
+    const horizon = new Date();
+    horizon.setDate(horizon.getDate() + 14);
+    const [itemsData, { data: billsData }, { data: movesData }, { data: creditsData }, { data: batchesData }] = await Promise.all([
       fetchShopItems(supabase, activeShopId, { orderByCode: false }),
       supabase.from("bills").select("*").eq("shop_id", activeShopId).order("date", { ascending: false }),
       supabase.from("movements").select("*").eq("shop_id", activeShopId).order("date", { ascending: false }).limit(6),
       supabase.from("credits").select("*").eq("shop_id", activeShopId),
+      supabase
+        .from("stock_batches")
+        .select("*")
+        .eq("shop_id", activeShopId)
+        .gt("qty_remaining", 0)
+        .not("expiry_date", "is", null)
+        .lte("expiry_date", horizon.toISOString().slice(0, 10))
+        .order("expiry_date", { ascending: true }),
     ]);
     setItems(itemsData);
     setBills(billsData || []);
     setMovements(movesData || []);
     setCredits(creditsData || []);
+    setExpiringBatches(batchesData || []);
     setLoading(false);
   }, [supabase, activeShopId]);
 
@@ -79,6 +92,16 @@ export default function DashboardPage() {
   }, [credits]);
 
   const bestCustomers = useMemo(() => topCustomers(bills, 5), [bills]);
+
+  const expiringWithNames = useMemo(
+    () =>
+      expiringBatches.map((b) => {
+        const item = items.find((i) => i.id === b.shop_product_id);
+        const days = Math.ceil((new Date(b.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
+        return { ...b, itemName: item?.name || "Unknown item", unit: item?.unit || "", days };
+      }),
+    [expiringBatches, items]
+  );
 
   if (loading) {
     return (
@@ -118,6 +141,26 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {expiringWithNames.length > 0 && (
+        <div className="ks-card p-4 mb-4" style={{ borderLeft: "4px solid #C13F45" }}>
+          <div className="flex items-center gap-2 mb-2">
+            <CalendarClock size={16} style={{ color: "#C13F45" }} />
+            <h2 className="ks-display font-bold text-sm">Expiring soon — today&apos;s risk check</h2>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {expiringWithNames.map((b) => (
+              <span
+                key={b.id}
+                className="text-xs font-semibold px-2.5 py-1.5 rounded-full"
+                style={{ background: b.days < 0 ? "#FDEAEA" : "#FCEEDA", color: b.days < 0 ? "#C13F45" : "#B5720B" }}
+              >
+                {b.itemName} · {b.qty_remaining} {b.unit} · {b.days < 0 ? `expired ${Math.abs(b.days)}d ago` : b.days === 0 ? "expires today" : `${b.days}d left`}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5">
         <StatCard

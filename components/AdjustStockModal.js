@@ -9,6 +9,7 @@ export default function AdjustStockModal({ item, type, suppliers, onClose, onCon
   const [qty, setQty] = useState("");
   const [reason, setReason] = useState(type === "in" ? "Purchase" : "Damage/Wastage");
   const [supplier, setSupplier] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const reasons = type === "in" ? ["Purchase", "Return from customer", "Correction"] : ["Damage/Wastage", "Personal use", "Correction"];
@@ -18,7 +19,7 @@ export default function AdjustStockModal({ item, type, suppliers, onClose, onCon
     setSaving(true);
     setError("");
     try {
-      await onConfirm(Number(qty), reason, supplier.trim());
+      await onConfirm(Number(qty), reason, supplier.trim(), expiryDate || null);
     } catch (err) {
       setError(err.message);
       setSaving(false);
@@ -55,6 +56,11 @@ export default function AdjustStockModal({ item, type, suppliers, onClose, onCon
                 <option key={s.id} value={s.name} />
               ))}
             </datalist>
+          </Field>
+        )}
+        {type === "in" && (
+          <Field label="Expiry date (optional)">
+            <input type="date" className="ks-input" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
           </Field>
         )}
         {error && (

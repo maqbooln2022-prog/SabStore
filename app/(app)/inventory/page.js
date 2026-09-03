@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, ArrowUpCircle, ArrowDownCircle, Star, Loader2 } from "lucide-react";
+import { Search, Plus, ArrowUpCircle, ArrowDownCircle, Star, Loader2, Layers } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import ItemThumb from "@/components/ItemThumb";
 import CategoryChip from "@/components/CategoryChip";
 import AddItemModal from "@/components/AddItemModal";
 import AdjustStockModal from "@/components/AdjustStockModal";
+import BatchesModal from "@/components/BatchesModal";
 import { reorderSuggestion } from "@/lib/inventoryHelpers";
 import { rupee } from "@/lib/format";
 import { fetchShopItems, flattenShopProduct } from "@/lib/products";
@@ -31,6 +32,7 @@ function InventoryPageInner() {
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [adjustItem, setAdjustItem] = useState(null);
+  const [batchesItem, setBatchesItem] = useState(null);
 
   // Supports a "?add=1" deep link (e.g. from the dashboard's empty-stock
   // state) that jumps straight into the add-item flow.
@@ -104,7 +106,7 @@ function InventoryPageInner() {
     setItems((prev) => prev.map((p) => (p.id === item.id ? merged : p)));
   }
 
-  async function logMovement(item, type, qty, reason, supplier) {
+  async function logMovement(item, type, qty, reason, supplier, expiryDate) {
     const result = await runQueued({
       type: "rpc",
       fn: "adjust_stock",
@@ -115,6 +117,7 @@ function InventoryPageInner() {
         p_qty: qty,
         p_reason: reason,
         p_supplier: supplier || null,
+        p_expiry_date: expiryDate || null,
       },
     });
 
@@ -240,6 +243,14 @@ function InventoryPageInner() {
                       >
                         <ArrowDownCircle size={13} /> Out
                       </button>
+                      <button
+                        onClick={() => setBatchesItem(i)}
+                        title="View batches (FIFO)"
+                        className="w-7 h-7 rounded-full flex items-center justify-center"
+                        style={{ background: "#E7E9F3", color: "#6B7280" }}
+                      >
+                        <Layers size={13} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -263,8 +274,11 @@ function InventoryPageInner() {
           type={adjustItem.type}
           suppliers={suppliers}
           onClose={() => setAdjustItem(null)}
-          onConfirm={(qty, reason, supplier) => logMovement(adjustItem.item, adjustItem.type, qty, reason, supplier)}
+          onConfirm={(qty, reason, supplier, expiryDate) => logMovement(adjustItem.item, adjustItem.type, qty, reason, supplier, expiryDate)}
         />
+      )}
+      {batchesItem && (
+        <BatchesModal item={batchesItem} supabase={supabase} activeShopId={activeShopId} onClose={() => setBatchesItem(null)} />
       )}
     </div>
   );

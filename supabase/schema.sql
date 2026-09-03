@@ -78,6 +78,26 @@ create table shop_products (
 create index shop_products_shop_id_idx on shop_products(shop_id);
 create index shop_products_product_id_idx on shop_products(product_id);
 
+-- ---------- Stock batches (FIFO rotation + expiry tracking) ----------
+-- Every stock-in becomes its own batch; shop_products.stock stays the
+-- authoritative on-hand count, this is the parallel record of rotation
+-- order. See migrations/010_stock_batches_fifo.sql for the full note.
+create table stock_batches (
+  id uuid primary key default uuid_generate_v4(),
+  shop_id uuid not null references shops(id) on delete cascade,
+  shop_product_id uuid not null references shop_products(id) on delete cascade,
+  qty_received numeric(12,3) not null,
+  qty_remaining numeric(12,3) not null,
+  cost_price numeric(12,2),
+  received_date timestamptz not null default now(),
+  expiry_date date,
+  reason text not null default 'Purchase',
+  supplier text,
+  created_at timestamptz not null default now()
+);
+create index stock_batches_shop_id_idx on stock_batches(shop_id);
+create index stock_batches_fifo_idx on stock_batches(shop_product_id, received_date);
+
 -- ---------- Stock movements (in/out log) ----------
 create table movements (
   id uuid primary key default uuid_generate_v4(),
@@ -309,6 +329,7 @@ alter table reconciliations enable row level security;
 alter table draws enable row level security;
 alter table expenses enable row level security;
 alter table fixed_expenses enable row level security;
+alter table stock_batches enable row level security;
 alter table suppliers enable row level security;
 alter table shop_suppliers enable row level security;
 
@@ -411,6 +432,11 @@ create policy "Members with expenses permission can update fixed_expenses" on fi
 create policy "Members with expenses permission can delete fixed_expenses" on fixed_expenses for delete
   using (has_shop_permission(shop_id, 'expenses'));
 
+-- Read-only for clients — every write goes through sell_items()/
+-- adjust_stock() below.
+create policy "Members can view stock_batches" on stock_batches for select
+  using (is_shop_member(shop_id));
+
 -- =========================================================
 -- Atomic stock operations — see migrations/005_atomic_stock_functions.sql
 -- for the full explanation of why these are SECURITY DEFINER with an
@@ -426,14 +452,22 @@ as $$
 declare
   line jsonb;
   current_stock numeric;
+  v_shop_product_id uuid;
+  v_qty numeric;
+  remaining_to_consume numeric;
+  batch record;
+  consume_qty numeric;
 begin
   if not has_shop_permission(p_shop_id, 'billing') then
     raise exception 'not permitted to bill for this shop';
   end if;
 
   for line in select * from jsonb_array_elements(p_lines) loop
+    v_shop_product_id := (line->>'shop_product_id')::uuid;
+    v_qty := (line->>'qty')::numeric;
+
     select stock into current_stock from shop_products
-      where id = (line->>'shop_product_id')::uuid and shop_id = p_shop_id
+      where id = v_shop_product_id and shop_id = p_shop_id
       for update;
 
     if current_stock is null then
@@ -441,18 +475,25 @@ begin
     end if;
 
     update shop_products
-      set stock = greatest(0, current_stock - (line->>'qty')::numeric)
-      where id = (line->>'shop_product_id')::uuid;
+      set stock = greatest(0, current_stock - v_qty)
+      where id = v_shop_product_id;
 
     insert into movements (shop_id, shop_product_id, item_name, type, qty, reason)
-      values (
-        p_shop_id,
-        (line->>'shop_product_id')::uuid,
-        line->>'name',
-        'out',
-        (line->>'qty')::numeric,
-        'sale'
-      );
+      values (p_shop_id, v_shop_product_id, line->>'name', 'out', v_qty, 'sale');
+
+    -- FIFO: consume oldest batches first for this line.
+    remaining_to_consume := v_qty;
+    for batch in
+      select id, qty_remaining from stock_batches
+        where shop_product_id = v_shop_product_id and qty_remaining > 0
+        order by received_date asc
+        for update
+    loop
+      exit when remaining_to_consume <= 0;
+      consume_qty := least(batch.qty_remaining, remaining_to_consume);
+      update stock_batches set qty_remaining = qty_remaining - consume_qty where id = batch.id;
+      remaining_to_consume := remaining_to_consume - consume_qty;
+    end loop;
   end loop;
 end;
 $$;
@@ -463,7 +504,8 @@ create or replace function adjust_stock(
   p_type text,
   p_qty numeric,
   p_reason text,
-  p_supplier text default null
+  p_supplier text default null,
+  p_expiry_date date default null
 )
 returns shop_products
 language plpgsql
@@ -473,7 +515,11 @@ as $$
 declare
   current_stock numeric;
   item_name text;
+  item_cost numeric;
   updated shop_products;
+  remaining_to_consume numeric;
+  batch record;
+  consume_qty numeric;
 begin
   if not has_shop_permission(p_shop_id, 'inventory') then
     raise exception 'not permitted to adjust inventory for this shop';
@@ -482,7 +528,7 @@ begin
     raise exception 'type must be in or out';
   end if;
 
-  select sp.stock, p.name into current_stock, item_name
+  select sp.stock, sp.cost_price, p.name into current_stock, item_cost, item_name
     from shop_products sp
     join products p on p.id = sp.product_id
     where sp.id = p_shop_product_id and sp.shop_id = p_shop_id
@@ -501,12 +547,30 @@ begin
   insert into movements (shop_id, shop_product_id, item_name, type, qty, reason, supplier)
     values (p_shop_id, p_shop_product_id, item_name, p_type, p_qty, p_reason, p_supplier);
 
+  if p_type = 'in' then
+    insert into stock_batches (shop_id, shop_product_id, qty_received, qty_remaining, cost_price, expiry_date, reason, supplier)
+      values (p_shop_id, p_shop_product_id, p_qty, p_qty, item_cost, p_expiry_date, p_reason, p_supplier);
+  else
+    remaining_to_consume := p_qty;
+    for batch in
+      select id, qty_remaining from stock_batches
+        where shop_product_id = p_shop_product_id and qty_remaining > 0
+        order by received_date asc
+        for update
+    loop
+      exit when remaining_to_consume <= 0;
+      consume_qty := least(batch.qty_remaining, remaining_to_consume);
+      update stock_batches set qty_remaining = qty_remaining - consume_qty where id = batch.id;
+      remaining_to_consume := remaining_to_consume - consume_qty;
+    end loop;
+  end if;
+
   return updated;
 end;
 $$;
 
 grant execute on function sell_items(uuid, jsonb) to authenticated;
-grant execute on function adjust_stock(uuid, uuid, text, numeric, text, text) to authenticated;
+grant execute on function adjust_stock(uuid, uuid, text, numeric, text, text, date) to authenticated;
 
 -- =========================================================
 -- Platform admin — see migrations/006_platform_admin.sql for the full
