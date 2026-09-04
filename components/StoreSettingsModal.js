@@ -11,20 +11,22 @@ const THEMES = [
   {
     id: "light",
     label: "Light",
-    sub: "Clean minimal",
-    page: "#F7F7F4",
+    sub: "Clean & professional",
+    page: "#F5F6F8",
     surface: "#FFFFFF",
-    accent: "#4338CA",
-    sidebar: "linear-gradient(160deg, #1C1D22, #0A0A0C)",
+    accent: "#2A4CDB",
+    sidebar: "#FFFFFF",
+    sidebarBorder: "#E5E7EB",
   },
   {
     id: "dark",
     label: "Dark",
     sub: "Modern dashboard",
-    page: "#0A0B0E",
-    surface: "#14161C",
-    accent: "#6C5CE7",
-    sidebar: "linear-gradient(160deg, #0F1015, #050506)",
+    page: "#0B0D12",
+    surface: "#12141B",
+    accent: "#5B7CFA",
+    sidebar: "#0E1017",
+    sidebarBorder: "#1D2029",
   },
   {
     id: "warm",
@@ -33,7 +35,8 @@ const THEMES = [
     page: "#F6F1E6",
     surface: "#FFFDF8",
     accent: "#0F6E56",
-    sidebar: "linear-gradient(160deg, #3A2E22, #1C1610)",
+    sidebar: "#2A2119",
+    sidebarBorder: "#2A2119",
   },
 ];
 
@@ -131,7 +134,7 @@ export default function StoreSettingsModal({ onClose }) {
                 style={{ borderColor: theme === t.id ? "var(--accent)" : "var(--border)" }}
               >
                 <div className="flex h-12" style={{ background: t.page }}>
-                  <div className="w-1/3" style={{ background: t.sidebar }} />
+                  <div className="w-1/3" style={{ background: t.sidebar, borderRight: `1px solid ${t.sidebarBorder}` }} />
                   <div className="flex-1 flex items-center justify-center">
                     <span className="w-2.5 h-2.5 rounded-full" style={{ background: t.accent }} />
                   </div>

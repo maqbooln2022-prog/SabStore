@@ -114,24 +114,21 @@ export default function DashboardPage() {
   return (
     <div className="pt-6">
       <div className="ks-hero p-6 sm:p-7 mb-4">
-        <div className="relative flex items-start justify-between flex-wrap gap-4">
+        <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
-            <p className="text-sm text-white/80 mb-2">
+            <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
               {greeting()}{displayName(user) ? `, ${displayName(user)}` : ""} 👋
             </p>
             <div className="ks-hero-chip inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full mb-3">
               <TrendingUp size={13} /> Today&apos;s sales
             </div>
             <div className="ks-display text-4xl sm:text-5xl font-extrabold">{rupee(todaysSales)}</div>
-            <p className="text-sm text-white/80 mt-1.5">
+            <p className="text-sm mt-1.5" style={{ color: "var(--text-secondary)" }}>
               {todaysBills.length} bill{todaysBills.length === 1 ? "" : "s"} · profit ~{rupee(todaysProfit)} today
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <button
-              onClick={() => router.push("/billing")}
-              className="bg-white text-[#4F46E5] font-bold px-5 py-2.5 rounded-full flex items-center gap-1.5 shadow-lg hover:brightness-105 active:scale-95 transition"
-            >
+            <button onClick={() => router.push("/billing")} className="ks-btn-primary flex items-center gap-1.5">
               <Plus size={17} strokeWidth={2.5} /> New Bill
             </button>
           </div>
