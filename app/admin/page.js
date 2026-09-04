@@ -9,6 +9,8 @@ import {
   Trash2,
   Loader2,
   Store,
+  UserCog,
+  Receipt,
   AlertTriangle,
   ChevronDown,
   Pencil,
@@ -24,6 +26,11 @@ import { callApi } from "@/lib/apiClient";
 import { MODULES } from "@/lib/modules";
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—");
+
+const DANGER_BG = "rgba(226,75,74,0.14)";
+const DANGER_TEXT = "#F29C9C";
+const SUCCESS_BG = "rgba(34,197,148,0.14)";
+const SUCCESS_TEXT = "#7FE0B8";
 
 export default function AdminPage() {
   return (
@@ -47,6 +54,16 @@ function AdminPageInner() {
   const [confirmDeleteShop, setConfirmDeleteShop] = useState(null); // shop object
   const [editMember, setEditMember] = useState(null); // member object
   const [confirmTransfer, setConfirmTransfer] = useState(null); // { shop, member }
+
+  // Runs the whole platform-admin area in the app's existing "dark" token
+  // palette (see app/globals.css) rather than a one-off hand-rolled one —
+  // this page was built before that system existed and predates it.
+  useEffect(() => {
+    document.documentElement.dataset.theme = "dark";
+    return () => {
+      delete document.documentElement.dataset.theme;
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -149,52 +166,70 @@ function AdminPageInner() {
   if (checking || !allowed) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <Loader2 className="animate-spin text-brand" size={28} />
+        <Loader2 className="animate-spin" size={28} style={{ color: "var(--accent)" }} />
       </main>
     );
   }
 
+  const STATS = data
+    ? [
+        { label: "Owner logins", value: data.totals.ownerCount, icon: ShieldCheck },
+        { label: "Staff logins", value: data.totals.staffCount, icon: UserCog },
+        { label: "Shops", value: data.totals.shopCount, icon: Store },
+        { label: "Bills", value: data.totals.billCount, icon: Receipt },
+      ]
+    : [];
+
   return (
     <main className="min-h-screen ks-page-pad py-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-3 mb-1">
-        <h1 className="ks-display text-xl font-bold flex items-center gap-2">
-          <ShieldCheck size={20} className="text-[#4F46E5]" /> Platform admin
-        </h1>
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: "var(--accent-soft-bg)" }}
+        >
+          <ShieldCheck size={18} style={{ color: "var(--accent)" }} />
+        </div>
+        <h1 className="ks-display text-xl font-bold">Platform admin</h1>
         <button
           onClick={handleSignOut}
-          className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-[#6B7280] hover:text-[#111827] px-3 py-1.5 rounded-full bg-[#E7E9F3]"
+          className="ml-auto flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full"
+          style={{ background: "var(--bg-surface-alt)", color: "var(--text-secondary)" }}
         >
           <LogOut size={13} /> Sign out
         </button>
       </div>
-      <p className="text-sm text-[#6B7280] mb-5">Every owner and shop on SabStore.</p>
+      <p className="text-sm mb-5" style={{ color: "var(--text-secondary)" }}>
+        Every owner and shop on SabStore.
+      </p>
 
       {loading && (
-        <div className="flex items-center gap-2 text-sm text-muted">
+        <div className="flex items-center gap-2 text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
           <Loader2 size={16} className="animate-spin" /> Loading…
         </div>
       )}
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-4">{error}</p>}
+      {error && (
+        <p className="text-sm rounded-lg px-3 py-2 mb-4" style={{ background: DANGER_BG, color: DANGER_TEXT }}>
+          {error}
+        </p>
+      )}
 
       {data && (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            <div className="ks-card p-4">
-              <div className="text-xs text-[#6B7280] font-semibold uppercase tracking-wide">Owner logins</div>
-              <div className="ks-mono text-2xl font-bold mt-1">{data.totals.ownerCount}</div>
-            </div>
-            <div className="ks-card p-4">
-              <div className="text-xs text-[#6B7280] font-semibold uppercase tracking-wide">Staff logins</div>
-              <div className="ks-mono text-2xl font-bold mt-1">{data.totals.staffCount}</div>
-            </div>
-            <div className="ks-card p-4">
-              <div className="text-xs text-[#6B7280] font-semibold uppercase tracking-wide">Shops</div>
-              <div className="ks-mono text-2xl font-bold mt-1">{data.totals.shopCount}</div>
-            </div>
-            <div className="ks-card p-4">
-              <div className="text-xs text-[#6B7280] font-semibold uppercase tracking-wide">Bills</div>
-              <div className="ks-mono text-2xl font-bold mt-1">{data.totals.billCount}</div>
-            </div>
+            {STATS.map((s) => (
+              <div key={s.label} className="ks-card p-4">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center mb-2.5"
+                  style={{ background: "var(--accent-soft-bg)", color: "var(--accent-soft-text)" }}
+                >
+                  <s.icon size={15} />
+                </div>
+                <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-secondary)" }}>
+                  {s.label}
+                </div>
+                <div className="ks-mono text-2xl font-bold mt-0.5">{s.value}</div>
+              </div>
+            ))}
           </div>
 
           <div className="space-y-3">
@@ -205,19 +240,21 @@ function AdminPageInner() {
                     <div className="font-semibold text-sm flex items-center gap-2">
                       {owner.email}
                       {owner.banned && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#FDEAEA", color: "#C13F45" }}>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: DANGER_BG, color: DANGER_TEXT }}>
                           SUSPENDED
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-[#6B7280]">Joined {fmtDate(owner.created_at)}</div>
+                    <div className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                      Joined {fmtDate(owner.created_at)}
+                    </div>
                   </div>
                   {owner.banned ? (
                     <button
                       onClick={() => reinstateOwner(owner)}
                       disabled={busyId === owner.id}
                       className="text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5"
-                      style={{ background: "#E4F5F0", color: "#0F6E56" }}
+                      style={{ background: SUCCESS_BG, color: SUCCESS_TEXT }}
                     >
                       {busyId === owner.id ? <Loader2 size={13} className="animate-spin" /> : <UserCheck size={13} />}
                       Reinstate
@@ -226,29 +263,31 @@ function AdminPageInner() {
                     <button
                       onClick={() => setConfirmSuspend(owner)}
                       className="text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5"
-                      style={{ background: "#FDEAEA", color: "#C13F45" }}
+                      style={{ background: DANGER_BG, color: DANGER_TEXT }}
                     >
                       <Ban size={13} /> Suspend
                     </button>
                   )}
                 </div>
 
-                <div className="mt-3 divide-y divide-[#F1F1F7] border-t border-[#F1F1F7]">
+                <div className="mt-3 divide-y" style={{ borderTop: "1px solid var(--border)", borderColor: "var(--border)" }}>
                   {owner.shops.map((shop) => {
                     const expanded = expandedShopId === shop.id;
                     return (
-                      <div key={shop.id}>
+                      <div key={shop.id} style={{ borderColor: "var(--border)" }}>
                         <button
                           onClick={() => setExpandedShopId(expanded ? null : shop.id)}
                           className="w-full flex items-center justify-between gap-3 py-2 text-sm text-left"
                         >
                           <div className="flex items-center gap-2 min-w-0">
-                            <Store size={14} className="text-[#B0A996] shrink-0" />
+                            <Store size={14} className="shrink-0" style={{ color: "var(--text-secondary)" }} />
                             <span className="font-medium truncate">{shop.name}</span>
-                            <span className="text-xs text-[#6B7280] shrink-0">{fmtDate(shop.created_at)}</span>
+                            <span className="text-xs shrink-0" style={{ color: "var(--text-secondary)" }}>
+                              {fmtDate(shop.created_at)}
+                            </span>
                           </div>
                           <div className="flex items-center gap-3 shrink-0">
-                            <span className="text-xs text-[#6B7280]">
+                            <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
                               1 owner · {shop.staff_count} staff · {shop.bill_count} bill{shop.bill_count === 1 ? "" : "s"}
                             </span>
                             <span
@@ -258,27 +297,39 @@ function AdminPageInner() {
                               }}
                               role="button"
                               className="w-7 h-7 rounded-full flex items-center justify-center"
-                              style={{ background: "#FDEAEA", color: "#C13F45" }}
+                              style={{ background: DANGER_BG, color: DANGER_TEXT }}
                               title="Delete this shop"
                             >
                               <Trash2 size={13} />
                             </span>
-                            <ChevronDown size={15} className={`text-[#B0A996] transition-transform ${expanded ? "rotate-180" : ""}`} />
+                            <ChevronDown
+                              size={15}
+                              className={`transition-transform ${expanded ? "rotate-180" : ""}`}
+                              style={{ color: "var(--text-secondary)" }}
+                            />
                           </div>
                         </button>
 
                         {expanded && (
                           <div className="pb-3 pl-6 space-y-1.5">
                             {shop.members.map((m) => (
-                              <div key={m.id} className="flex items-center justify-between gap-2 text-xs bg-[#FAFAFD] rounded-lg px-3 py-2">
+                              <div
+                                key={m.id}
+                                className="flex items-center justify-between gap-2 text-xs rounded-lg px-3 py-2"
+                                style={{ background: "var(--bg-surface-alt)" }}
+                              >
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <Users size={12} className="text-[#B0A996] shrink-0" />
+                                  <Users size={12} className="shrink-0" style={{ color: "var(--text-secondary)" }} />
                                   <span className="font-semibold truncate">{m.name}</span>
-                                  <span className="text-[#6B7280] truncate">{m.email}</span>
+                                  <span className="truncate" style={{ color: "var(--text-secondary)" }}>
+                                    {m.email}
+                                  </span>
                                   <span
                                     className="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
                                     style={
-                                      m.role === "owner" ? { background: "#EEF0FE", color: "#4F46E5" } : { background: "#E7E9F3", color: "#6B7280" }
+                                      m.role === "owner"
+                                        ? { background: "var(--accent-soft-bg)", color: "var(--accent-soft-text)" }
+                                        : { background: "var(--border)", color: "var(--text-secondary)" }
                                     }
                                   >
                                     {m.role.toUpperCase()}
@@ -287,7 +338,8 @@ function AdminPageInner() {
                                 <div className="flex items-center gap-1.5 shrink-0">
                                   <button
                                     onClick={() => setEditMember(m)}
-                                    className="w-6 h-6 rounded-full flex items-center justify-center bg-[#E7E9F3] text-[#6B7280]"
+                                    className="w-6 h-6 rounded-full flex items-center justify-center"
+                                    style={{ background: "var(--border)", color: "var(--text-secondary)" }}
                                     title="Edit"
                                   >
                                     <Pencil size={11} />
@@ -296,7 +348,7 @@ function AdminPageInner() {
                                     <button
                                       onClick={() => setConfirmTransfer({ shop, member: m })}
                                       className="w-6 h-6 rounded-full flex items-center justify-center"
-                                      style={{ background: "#E4F5F0", color: "#0F6E56" }}
+                                      style={{ background: SUCCESS_BG, color: SUCCESS_TEXT }}
                                       title="Make owner"
                                     >
                                       <ArrowUpCircle size={12} />
@@ -313,7 +365,11 @@ function AdminPageInner() {
                 </div>
               </div>
             ))}
-            {data.owners.length === 0 && <p className="text-sm text-[#6B7280] text-center py-10">No shops on the platform yet.</p>}
+            {data.owners.length === 0 && (
+              <p className="text-sm text-center py-10" style={{ color: "var(--text-secondary)" }}>
+                No shops on the platform yet.
+              </p>
+            )}
           </div>
         </>
       )}
@@ -321,7 +377,7 @@ function AdminPageInner() {
       {confirmSuspend && (
         <Modal title="Suspend this owner?" onClose={() => setConfirmSuspend(null)}>
           <div className="space-y-3.5">
-            <div className="flex items-start gap-2 text-xs text-[#C13F45] bg-[#FDEAEA] rounded-lg px-3 py-2.5">
+            <div className="flex items-start gap-2 text-xs rounded-lg px-3 py-2.5" style={{ background: DANGER_BG, color: DANGER_TEXT }}>
               <AlertTriangle size={14} className="shrink-0 mt-0.5" />
               <span>
                 <strong>{confirmSuspend.email}</strong> won&apos;t be able to sign in until reinstated. Their shops and
@@ -362,7 +418,7 @@ function AdminPageInner() {
       {confirmTransfer && (
         <Modal title="Transfer ownership?" onClose={() => setConfirmTransfer(null)}>
           <div className="space-y-3.5">
-            <div className="flex items-start gap-2 text-xs text-[#C13F45] bg-[#FDEAEA] rounded-lg px-3 py-2.5">
+            <div className="flex items-start gap-2 text-xs rounded-lg px-3 py-2.5" style={{ background: DANGER_BG, color: DANGER_TEXT }}>
               <AlertTriangle size={14} className="shrink-0 mt-0.5" />
               <span>
                 <strong>{confirmTransfer.member.name}</strong> ({confirmTransfer.member.email}) becomes the owner of{" "}
@@ -397,7 +453,7 @@ function DeleteShopModal({ shop, busy, onClose, onConfirm }) {
   return (
     <Modal title="Delete this shop?" onClose={onClose}>
       <div className="space-y-3.5">
-        <div className="flex items-start gap-2 text-xs text-[#C13F45] bg-[#FDEAEA] rounded-lg px-3 py-2.5">
+        <div className="flex items-start gap-2 text-xs rounded-lg px-3 py-2.5" style={{ background: DANGER_BG, color: DANGER_TEXT }}>
           <AlertTriangle size={14} className="shrink-0 mt-0.5" />
           <span>
             This permanently deletes <strong>{shop.name}</strong> and everything in it — items, bills, udhaar,
@@ -466,8 +522,8 @@ function EditMemberModal({ member, onClose, onSave }) {
                   className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border-2 cursor-pointer transition-colors"
                   style={
                     permissions[m.key]
-                      ? { borderColor: "#4F46E5", background: "#EEF0FE", color: "#4F46E5" }
-                      : { borderColor: "#E2E4F0", color: "#6B7280" }
+                      ? { borderColor: "var(--accent)", background: "var(--accent-soft-bg)", color: "var(--accent-soft-text)" }
+                      : { borderColor: "var(--border)", color: "var(--text-secondary)" }
                   }
                 >
                   <input type="checkbox" className="hidden" checked={!!permissions[m.key]} onChange={() => togglePermission(m.key)} />
@@ -478,7 +534,7 @@ function EditMemberModal({ member, onClose, onSave }) {
           </Field>
         )}
         {!resetPin ? (
-          <button type="button" onClick={() => setResetPin(true)} className="text-xs font-semibold text-[#4F46E5]">
+          <button type="button" onClick={() => setResetPin(true)} className="text-xs font-semibold" style={{ color: "var(--accent)" }}>
             Reset their password / PIN
           </button>
         ) : (
@@ -492,13 +548,17 @@ function EditMemberModal({ member, onClose, onSave }) {
               placeholder="e.g. 583920"
             />
             {pinTooShort && (
-              <p className="text-xs text-[#C13F45] font-medium mt-1">
+              <p className="text-xs font-medium mt-1" style={{ color: DANGER_TEXT }}>
                 {6 - newPin.length} more digit{6 - newPin.length === 1 ? "" : "s"} needed
               </p>
             )}
           </Field>
         )}
-        {error && <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>}
+        {error && (
+          <p className="text-sm rounded-lg px-3 py-2" style={{ background: DANGER_BG, color: DANGER_TEXT }}>
+            {error}
+          </p>
+        )}
         <button disabled={!valid || saving} onClick={handleSave} className="ks-btn-primary w-full flex items-center justify-center gap-2">
           {saving && <Loader2 size={16} className="animate-spin" />}
           Save changes
