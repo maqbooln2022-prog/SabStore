@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
 
 /* =========================================================
    Design tokens — content surfaces modeled on real Indian
@@ -19,6 +19,7 @@
   --font-display: "Inter", sans-serif;
   --font-body: "Inter", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
+  --font-sidebar: "Plus Jakarta Sans", sans-serif;
 
   --bg-page: #F5F6F8;
   --bg-page-glow: none;
@@ -195,7 +196,7 @@ body {
 .ks-fade-up { animation: ks-fade-up .35s ease-out; }
 .ks-pulse { animation: ks-pulse-dot 1.6s ease-in-out infinite; }
 
-.ks-sidebar { background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border); }
+.ks-sidebar { background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border); font-family: var(--font-sidebar); }
 .ks-sidebar-chip { background: var(--sidebar-chip-bg); border: 1px solid var(--sidebar-border); }
 .ks-sidebar-text { color: var(--sidebar-text); }
 .ks-sidebar-text-strong { color: var(--sidebar-text-strong); }
