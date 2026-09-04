@@ -463,27 +463,17 @@ function BillingPageInner() {
             placeholder="Search by name or 2-digit code..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="ks-input pl-10 pr-20 py-3"
+            className="ks-input py-3"
+            style={{ paddingLeft: "2.5rem", paddingRight: "3rem" }}
           />
-          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-            <button
-              onClick={startBarcodeScanner}
-              title="Scan barcode with camera"
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${scannerActive ? "ks-pulse" : ""}`}
-              style={{ background: scannerActive ? "#4F46E5" : "#E7E9F3", color: scannerActive ? "#fff" : "#6B7280" }}
-            >
-              <ScanLine size={15} />
-            </button>
-            <button
-              onClick={startVoiceAdd}
-              disabled={!voiceSupported}
-              title={voiceSupported ? 'Speak to add an item — e.g. "2 kg sugar"' : "Voice input not supported in this browser"}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors disabled:opacity-30 ${listening ? "ks-pulse" : ""}`}
-              style={{ background: listening ? "#E5484D" : "#E7E9F3", color: listening ? "#fff" : "#6B7280" }}
-            >
-              <Mic size={15} />
-            </button>
-          </div>
+          <button
+            onClick={startBarcodeScanner}
+            title="Scan barcode with camera"
+            className={`absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${scannerActive ? "ks-pulse" : ""}`}
+            style={{ background: scannerActive ? "#4F46E5" : "#E7E9F3", color: scannerActive ? "#fff" : "#6B7280" }}
+          >
+            <ScanLine size={15} />
+          </button>
           {results.length > 0 && (
             <div className="absolute z-10 mt-1.5 w-full bg-white rounded-2xl overflow-hidden shadow-xl border border-[#E7E9F3]">
               {results.map((r) => (
@@ -513,30 +503,6 @@ function BillingPageInner() {
             </div>
           )}
         </div>
-        {listening && (
-          <p className="text-xs text-[#C13F45] font-medium mt-1.5 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#E5484D] ks-pulse" /> Listening ({voiceLang === "hi-IN" ? "Hindi" : "English"})... try
-            &quot;250 grams sugar&quot; or &quot;1.5 liters oil&quot;
-          </p>
-        )}
-        {!listening && lastHeard && <p className="text-xs text-[#6B7280] mt-1.5">Heard: &quot;{lastHeard}&quot;</p>}
-        {voiceSupported && (
-          <div className="flex items-center gap-1.5 mt-2">
-            <Languages size={13} className="text-[#6B7280]" />
-            <button
-              onClick={() => setVoiceLang("en-IN")}
-              className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${voiceLang === "en-IN" ? "bg-[#000000] text-white" : "bg-[#E7E9F3] text-[#6B7280]"}`}
-            >
-              English
-            </button>
-            <button
-              onClick={() => setVoiceLang("hi-IN")}
-              className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${voiceLang === "hi-IN" ? "bg-[#000000] text-white" : "bg-[#E7E9F3] text-[#6B7280]"}`}
-            >
-              हिन्दी
-            </button>
-          </div>
-        )}
 
         <div className="flex items-center gap-1.5 flex-wrap mt-3">
           {categories.map((cat) => {
