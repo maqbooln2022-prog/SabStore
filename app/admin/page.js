@@ -215,38 +215,58 @@ function AdminPageInner() {
     }
   }
 
-  // Derived chart data
+  // Derived chart data — enriched with shopId/ownerId so chart clicks can navigate
   const chartData = useMemo(() => {
     if (!data) return null;
 
-    // Shop types donut
+    // Shop types donut — each slice carries the list of shops of that type
     const typeCounts = {};
+    const typeShops = {};
     data.owners.forEach((o) =>
       o.shops.forEach((s) => {
         const t = s.type || "other";
         typeCounts[t] = (typeCounts[t] || 0) + 1;
+        (typeShops[t] ||= []).push({
+          shopId: s.id, name: s.name, type: s.type,
+          ownerEmail: o.email, ownerId: o.id,
+          bill_count: s.bill_count, last_bill_at: s.last_bill_at,
+        });
       })
     );
-    const typeData = Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
+    const typeData = Object.entries(typeCounts).map(([name, value]) => ({
+      name, value, shops: typeShops[name] || [],
+    }));
 
-    // Top shops by bills
+    // Top shops by bills — each bar carries its own shopId
     const topShops = data.owners
-      .flatMap((o) => o.shops.map((s) => ({ name: s.name, bills: s.bill_count })))
+      .flatMap((o) => o.shops.map((s) => ({
+        name: s.name, bills: s.bill_count,
+        shopId: s.id, ownerId: o.id, ownerEmail: o.email,
+        last_bill_at: s.last_bill_at, type: s.type,
+      })))
       .sort((a, b) => b.bills - a.bills)
       .slice(0, 7);
 
-    // Signups over time (by month)
+    // Signups over time — each point carries the shops that joined that month
     const monthCounts = {};
+    const monthShops = {};
     data.owners.forEach((o) => {
       if (!o.created_at) return;
       const d = new Date(o.created_at);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const label = d.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
       monthCounts[key] = { label, count: (monthCounts[key]?.count || 0) + 1 };
+      o.shops.forEach((s) => {
+        (monthShops[key] ||= []).push({
+          shopId: s.id, name: s.name, type: s.type,
+          ownerEmail: o.email, ownerId: o.id,
+          bill_count: s.bill_count, last_bill_at: s.last_bill_at,
+        });
+      });
     });
     const signupData = Object.entries(monthCounts)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([, v]) => v);
+      .map(([key, v]) => ({ ...v, shops: monthShops[key] || [] }));
 
     return { typeData, topShops, signupData };
   }, [data]);
@@ -350,7 +370,11 @@ function AdminPageInner() {
             )}
 
             {data && activeTab === "overview" && (
-              <OverviewTab stats={STATS} chartData={chartData} />
+              <OverviewTab
+                stats={STATS}
+                chartData={chartData}
+                onNavigateToShop={(shopId) => { setActiveTab("shops"); setExpandedShopId(shopId); }}
+              />
             )}
 
             {data && activeTab === "shops" && (
@@ -440,7 +464,18 @@ function AdminPageInner() {
   );
 }
 
-function OverviewTab({ stats, chartData }) {
+function OverviewTab({ stats, chartData, onNavigateToShop }) {
+  const [chartModal, setChartModal] = useState(null);
+  // null | { type:"shop", shop } | { type:"list", title, shops[] }
+
+  function openShop(shop) {
+    setChartModal({ type: "shop", shop });
+  }
+  function openList(title, shops) {
+    if (shops.length === 1) { openShop(shops[0]); return; }
+    setChartModal({ type: "list", title, shops });
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -471,10 +506,13 @@ function OverviewTab({ stats, chartData }) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Shop types donut */}
           <div className="ks-card p-5">
-            <h3 className="text-sm font-semibold mb-4">Shop types</h3>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-sm font-semibold">Shop types</h3>
+              <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>Click a slice to view</span>
+            </div>
             {chartData.typeData.length > 0 ? (
-              <div className="flex items-center gap-6">
-                <div style={{ width: 160, height: 160, flexShrink: 0 }}>
+              <div className="flex items-center gap-6 mt-3">
+                <div style={{ width: 160, height: 160, flexShrink: 0, cursor: "pointer" }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -486,9 +524,14 @@ function OverviewTab({ stats, chartData }) {
                         paddingAngle={3}
                         dataKey="value"
                         stroke="none"
+                        onClick={(entry) => openList(`${entry.name} shops`, entry.shops || [])}
                       >
                         {chartData.typeData.map((entry, i) => (
-                          <Cell key={entry.name} fill={TYPE_COLORS[entry.name] || TYPE_COLOR_LIST[i % TYPE_COLOR_LIST.length]} />
+                          <Cell
+                            key={entry.name}
+                            fill={TYPE_COLORS[entry.name] || TYPE_COLOR_LIST[i % TYPE_COLOR_LIST.length]}
+                            style={{ cursor: "pointer" }}
+                          />
                         ))}
                       </Pie>
                       <Tooltip
@@ -500,14 +543,21 @@ function OverviewTab({ stats, chartData }) {
                 </div>
                 <div className="space-y-2 min-w-0">
                   {chartData.typeData.map((entry, i) => (
-                    <div key={entry.name} className="flex items-center gap-2 text-xs">
+                    <button
+                      key={entry.name}
+                      onClick={() => openList(`${entry.name} shops`, entry.shops || [])}
+                      className="w-full flex items-center gap-2 text-xs text-left rounded-lg px-2 py-1 transition-colors"
+                      style={{ background: "transparent" }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-surface-alt)"}
+                      onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                    >
                       <span
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ background: TYPE_COLORS[entry.name] || TYPE_COLOR_LIST[i % TYPE_COLOR_LIST.length] }}
                       />
                       <span className="capitalize truncate" style={{ color: "var(--text-secondary)" }}>{entry.name}</span>
                       <span className="ml-auto font-semibold tabular-nums">{entry.value}</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -518,29 +568,41 @@ function OverviewTab({ stats, chartData }) {
 
           {/* Signups over time */}
           <div className="ks-card p-5">
-            <h3 className="text-sm font-semibold mb-4">Owner signups over time</h3>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-sm font-semibold">Owner signups over time</h3>
+              <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>Click a point to view</span>
+            </div>
             {chartData.signupData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={160}>
-                <LineChart data={chartData.signupData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-                  <CartesianGrid vertical={false} stroke={CHART_GRID} />
-                  <XAxis dataKey="label" tick={{ fill: CHART_TICK, fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis allowDecimals={false} tick={{ fill: CHART_TICK, fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{ background: "#12141B", border: "1px solid #23263A", borderRadius: 8, fontSize: 12 }}
-                    itemStyle={{ color: "#E2E8F0" }}
-                    labelStyle={{ color: CHART_TICK }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="count"
-                    name="Signups"
-                    stroke={CHART_ACCENT}
-                    strokeWidth={2.5}
-                    dot={{ fill: CHART_ACCENT, r: 4, strokeWidth: 0 }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <div style={{ cursor: "pointer" }} className="mt-3">
+                <ResponsiveContainer width="100%" height={148}>
+                  <LineChart
+                    data={chartData.signupData}
+                    margin={{ top: 4, right: 8, bottom: 0, left: -20 }}
+                    onClick={(e) => {
+                      const pt = e?.activePayload?.[0]?.payload;
+                      if (pt?.shops) openList(`Signups – ${pt.label}`, pt.shops);
+                    }}
+                  >
+                    <CartesianGrid vertical={false} stroke={CHART_GRID} />
+                    <XAxis dataKey="label" tick={{ fill: CHART_TICK, fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis allowDecimals={false} tick={{ fill: CHART_TICK, fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      contentStyle={{ background: "#12141B", border: "1px solid #23263A", borderRadius: 8, fontSize: 12 }}
+                      itemStyle={{ color: "#E2E8F0" }}
+                      labelStyle={{ color: CHART_TICK }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="count"
+                      name="Signups"
+                      stroke={CHART_ACCENT}
+                      strokeWidth={2.5}
+                      dot={{ fill: CHART_ACCENT, r: 5, strokeWidth: 0, cursor: "pointer" }}
+                      activeDot={{ r: 7, cursor: "pointer" }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             ) : (
               <p className="text-sm text-center py-8" style={{ color: "var(--text-secondary)" }}>No data yet</p>
             )}
@@ -551,24 +613,108 @@ function OverviewTab({ stats, chartData }) {
       {/* Top shops by bills */}
       {chartData && chartData.topShops.length > 0 && (
         <div className="ks-card p-5">
-          <h3 className="text-sm font-semibold mb-4">Top shops by bill count</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={chartData.topShops} margin={{ top: 4, right: 8, bottom: 4, left: -20 }} barSize={32}>
-              <CartesianGrid vertical={false} stroke={CHART_GRID} />
-              <XAxis dataKey="name" tick={{ fill: CHART_TICK, fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis allowDecimals={false} tick={{ fill: CHART_TICK, fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ background: "#12141B", border: "1px solid #23263A", borderRadius: 8, fontSize: 12 }}
-                itemStyle={{ color: "#E2E8F0" }}
-                labelStyle={{ color: "#E2E8F0", fontWeight: 600 }}
-                cursor={{ fill: "rgba(91,124,250,0.08)" }}
-              />
-              <Bar dataKey="bills" name="Bills" fill={CHART_ACCENT} radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-sm font-semibold">Top shops by bill count</h3>
+            <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>Click a bar to view</span>
+          </div>
+          <div style={{ cursor: "pointer" }} className="mt-3">
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart
+                data={chartData.topShops}
+                margin={{ top: 4, right: 8, bottom: 4, left: -20 }}
+                barSize={32}
+                onClick={(e) => { if (e?.activePayload?.[0]) openShop(e.activePayload[0].payload); }}
+              >
+                <CartesianGrid vertical={false} stroke={CHART_GRID} />
+                <XAxis dataKey="name" tick={{ fill: CHART_TICK, fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fill: CHART_TICK, fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ background: "#12141B", border: "1px solid #23263A", borderRadius: 8, fontSize: 12 }}
+                  itemStyle={{ color: "#E2E8F0" }}
+                  labelStyle={{ color: "#E2E8F0", fontWeight: 600 }}
+                  cursor={{ fill: "rgba(91,124,250,0.08)" }}
+                />
+                <Bar dataKey="bills" name="Bills" fill={CHART_ACCENT} radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       )}
+
+      {/* Chart shop modal */}
+      {chartModal && (
+        <ChartShopModal
+          modal={chartModal}
+          onClose={() => setChartModal(null)}
+          onNavigate={(shopId) => { setChartModal(null); onNavigateToShop(shopId); }}
+        />
+      )}
     </div>
+  );
+}
+
+function ChartShopModal({ modal, onClose, onNavigate }) {
+  const [selected, setSelected] = useState(modal.type === "shop" ? modal.shop : null);
+
+  if (selected) {
+    return (
+      <Modal title={selected.name} onClose={onClose}>
+        <div className="space-y-3.5">
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+            {[
+              ["Owner", selected.ownerEmail],
+              ["Type", selected.type ? selected.type.charAt(0).toUpperCase() + selected.type.slice(1) : "—"],
+              ["Bills", selected.bill_count],
+              ["Last active", selected.last_bill_at ? fmtDate(selected.last_bill_at) : "No bills yet"],
+            ].map(([label, val], i) => (
+              <div
+                key={label}
+                className="flex items-center justify-between gap-4 px-4 py-2.5 text-sm"
+                style={{ borderTop: i > 0 ? "1px solid var(--border)" : "none", background: "var(--bg-surface-alt)" }}
+              >
+                <span style={{ color: "var(--text-secondary)" }}>{label}</span>
+                <span className="font-medium text-right truncate">{val}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            {modal.type !== "shop" && (
+              <button onClick={() => setSelected(null)} className="ks-btn-outline flex-1">← Back</button>
+            )}
+            <button onClick={() => onNavigate(selected.shopId)} className="ks-btn-primary flex-1">
+              View in Owners &amp; Shops
+            </button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
+  // List picker — shown when a pie slice or line point has multiple shops
+  return (
+    <Modal title={modal.title} onClose={onClose}>
+      <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+        {modal.shops.map((shop) => (
+          <button
+            key={shop.shopId}
+            onClick={() => setSelected(shop)}
+            className="w-full text-left flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors"
+            style={{ background: "var(--bg-surface-alt)" }}
+          >
+            <div className="min-w-0">
+              <div className="font-semibold truncate">{shop.name}</div>
+              <div className="text-xs truncate" style={{ color: "var(--text-secondary)" }}>{shop.ownerEmail}</div>
+            </div>
+            <span className="text-xs shrink-0 tabular-nums" style={{ color: "var(--text-secondary)" }}>
+              {shop.bill_count} bills
+            </span>
+          </button>
+        ))}
+        {modal.shops.length === 0 && (
+          <p className="text-sm text-center py-4" style={{ color: "var(--text-secondary)" }}>No shops</p>
+        )}
+      </div>
+    </Modal>
   );
 }
 
