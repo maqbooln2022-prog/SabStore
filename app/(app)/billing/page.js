@@ -12,6 +12,10 @@ import {
   MessageCircle,
   CheckCircle2,
   Loader2,
+  ScanLine,
+  AlertTriangle,
+  Tag,
+  History,
 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import ItemThumb from "@/components/ItemThumb";
@@ -22,6 +26,7 @@ import PrintBillContent from "@/components/PrintBillContent";
 import { rupee } from "@/lib/format";
 import { whatsappLink, billMessageText, taxBreakup } from "@/lib/messaging";
 import { parseSpokenQuantity, matchItemFromSpeech } from "@/lib/voiceHelpers";
+import VoiceBillingModal from "@/components/VoiceBillingModal";
 import { fetchShopItems } from "@/lib/products";
 import { fetchActiveOffers, activeDiscountMap, clearancePrice } from "@/lib/clearance";
 import { cacheProducts, getCachedProducts, cacheBills, getCachedBills } from "@/lib/productCache";
@@ -47,13 +52,17 @@ function BillingPageInner() {
   const [customer, setCustomer] = useState({ name: "", phone: "" });
   const [billType, setBillType] = useState("cash");
   const [loyaltyDiscount, setLoyaltyDiscount] = useState(false);
+  const [manualDiscount, setManualDiscount] = useState({ type: "pct", value: "" });
   const [lastBill, setLastBill] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [scannerActive, setScannerActive] = useState(false);
   const [activeCategory, setActiveCategory] = useState(null);
   const [pickerItem, setPickerItem] = useState(null);
   const [listening, setListening] = useState(false);
   const [lastHeard, setLastHeard] = useState("");
   const [voiceLang, setVoiceLang] = useState("en-IN");
   const [generating, setGenerating] = useState(false);
+  const [showVoiceBilling, setShowVoiceBilling] = useState(false);
   const recognitionRef = useRef(null);
   const voiceSupported = typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
@@ -229,7 +238,14 @@ function BillingPageInner() {
   }
 
   const subtotal = cart.reduce((s, c) => s + c.qty * c.price, 0);
-  const discountAmount = loyaltyDiscount ? Math.round(subtotal * 0.05) : 0;
+  const loyaltyDiscountAmount = loyaltyDiscount ? Math.round(subtotal * 0.05) : 0;
+  const manualDiscountAmount = (() => {
+    const v = parseFloat(manualDiscount.value) || 0;
+    if (v <= 0) return 0;
+    const raw = manualDiscount.type === "pct" ? Math.round((v / 100) * subtotal) : Math.round(v);
+    return Math.min(raw, subtotal);
+  })();
+  const discountAmount = loyaltyDiscountAmount + manualDiscountAmount;
   const total = subtotal - discountAmount;
   const clearanceSavings = cart.reduce((s, c) => s + (c.originalPrice ? (c.originalPrice - c.price) * c.qty : 0), 0);
 
@@ -240,7 +256,10 @@ function BillingPageInner() {
     setGenerating(true);
     try {
       const billNo = `KS-${1000 + bills.length + 1}`;
-      const billItems = cart.map(({ shop_product_id, code, name, price, unit, gst, qty }) => ({ shop_product_id, code, name, price, unit, gst, qty }));
+      const billItems = cart.map(({ shop_product_id, code, name, price, unit, gst, qty }) => {
+        const inv = items.find((i) => i.id === shop_product_id);
+        return { shop_product_id, code, name, price, unit, gst, qty, cost_price: inv?.cost_price ?? null };
+      });
       // Built client-side (including the id) so a queued/offline bill can
       // be shown, printed, and sent immediately — it reconciles with the
       // real row once runQueued's background flush actually writes it.
@@ -294,11 +313,69 @@ function BillingPageInner() {
       setCustomer({ name: "", phone: "" });
       setBillType("cash");
       setLoyaltyDiscount(false);
+      setManualDiscount({ type: "pct", value: "" });
     } catch (err) {
       showToast(err.message, "err");
     } finally {
       setGenerating(false);
     }
+  }
+
+  function handleVoiceBillingConfirm(voiceCart, voiceBillType) {
+    setCart(voiceCart.map(({ item, qty }) => ({
+      shop_product_id: item.id,
+      code: item.code,
+      name: item.name,
+      price: item.price,
+      originalPrice: item.originalPrice || null,
+      clearancePct: item.clearancePct || null,
+      unit: item.unit,
+      gst: item.gst,
+      qty,
+      stock: item.stock,
+    })));
+    setBillType(voiceBillType);
+    setShowVoiceBilling(false);
+  }
+
+  function startBarcodeScanner() {
+    if (!("BarcodeDetector" in window)) {
+      showToast("Barcode scanner not supported in this browser — search by code or name instead", "warn");
+      return;
+    }
+    setScannerActive(true);
+    let active = true;
+    const detector = new window.BarcodeDetector({ formats: ["code_128", "ean_13", "ean_8", "code_39", "qr_code"] });
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then((stream) => {
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      video.play();
+      const scan = () => {
+        if (!active) { stream.getTracks().forEach((t) => t.stop()); return; }
+        detector.detect(video).then((codes) => {
+          if (codes.length > 0) {
+            const val = codes[0].rawValue;
+            stream.getTracks().forEach((t) => t.stop());
+            active = false;
+            setScannerActive(false);
+            const matched = pricedItems.find((i) => i.barcode === val || i.code === val || i.code === val.slice(-2));
+            if (matched) {
+              setPickerItem(matched);
+            } else {
+              setQuery(val);
+              showToast(`Scanned: ${val} — no exact match, showing search results`);
+            }
+          } else {
+            requestAnimationFrame(scan);
+          }
+        }).catch(() => requestAnimationFrame(scan));
+      };
+      video.onloadeddata = scan;
+    }).catch(() => {
+      active = false;
+      setScannerActive(false);
+      showToast("Camera access denied — allow it in browser settings", "err");
+    });
   }
 
   function printBill(bill) {
@@ -314,9 +391,29 @@ function BillingPageInner() {
     );
   }
 
+  const lowStockItems = pricedItems.filter((i) => i.low_at > 0 && i.stock <= i.low_at);
+
+  function billProfit(bill) {
+    return (bill.items || []).reduce((s, line) => {
+      const cost = line.cost_price ?? items.find((i) => i.id === line.shop_product_id)?.cost_price ?? null;
+      if (cost == null) return s;
+      return s + (line.price - cost) * line.qty;
+    }, 0);
+  }
+
   return (
     <div className="pt-6 ks-billing-grid">
       <div>
+        {lowStockItems.length > 0 && (
+          <div className="ks-card p-3 mb-4 flex items-center gap-2 flex-wrap" style={{ borderLeft: "4px solid #C13F45" }}>
+            <AlertTriangle size={14} style={{ color: "#C13F45" }} className="shrink-0" />
+            <span className="text-xs font-semibold" style={{ color: "#C13F45" }}>Low stock:</span>
+            <span className="text-xs text-[#6B7280] flex-1">
+              {lowStockItems.slice(0, 5).map((i) => `${i.name} (${i.stock} ${i.unit})`).join(" · ")}
+              {lowStockItems.length > 5 && ` · +${lowStockItems.length - 5} more`}
+            </span>
+          </div>
+        )}
         {quickItems.length > 0 && (
           <div className="mb-4">
             <div className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-2 flex items-center gap-1.5">
@@ -354,23 +451,43 @@ function BillingPageInner() {
           </div>
         )}
 
+        <button
+          onClick={() => setShowVoiceBilling(true)}
+          className="w-full flex items-center gap-3 mb-3 px-4 py-3 rounded-2xl font-semibold text-sm transition-transform active:scale-[0.98]"
+          style={{ background: "var(--accent)", color: "#fff" }}
+        >
+          <Mic size={18} />
+          <span>Voice billing mode</span>
+          <span className="ml-auto text-xs font-normal opacity-75">Speak to add items &amp; print</span>
+        </button>
+
         <div className="relative">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#B0A996]" />
           <input
             placeholder="Search by name or 2-digit code..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="ks-input pl-10 pr-11 py-3"
+            className="ks-input pl-10 pr-20 py-3"
           />
-          <button
-            onClick={startVoiceAdd}
-            disabled={!voiceSupported}
-            title={voiceSupported ? 'Speak to add an item — e.g. "2 kg sugar"' : "Voice input not supported in this browser"}
-            className={`absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-colors disabled:opacity-30 ${listening ? "ks-pulse" : ""}`}
-            style={{ background: listening ? "#E5484D" : "#E7E9F3", color: listening ? "#fff" : "#6B7280" }}
-          >
-            <Mic size={15} />
-          </button>
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            <button
+              onClick={startBarcodeScanner}
+              title="Scan barcode with camera"
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${scannerActive ? "ks-pulse" : ""}`}
+              style={{ background: scannerActive ? "#4F46E5" : "#E7E9F3", color: scannerActive ? "#fff" : "#6B7280" }}
+            >
+              <ScanLine size={15} />
+            </button>
+            <button
+              onClick={startVoiceAdd}
+              disabled={!voiceSupported}
+              title={voiceSupported ? 'Speak to add an item — e.g. "2 kg sugar"' : "Voice input not supported in this browser"}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors disabled:opacity-30 ${listening ? "ks-pulse" : ""}`}
+              style={{ background: listening ? "#E5484D" : "#E7E9F3", color: listening ? "#fff" : "#6B7280" }}
+            >
+              <Mic size={15} />
+            </button>
+          </div>
           {results.length > 0 && (
             <div className="absolute z-10 mt-1.5 w-full bg-white rounded-2xl overflow-hidden shadow-xl border border-[#E7E9F3]">
               {results.map((r) => (
@@ -549,6 +666,34 @@ function BillingPageInner() {
             </div>
           )}
 
+          <div className="mb-3">
+            <p className="text-xs font-semibold text-[#6B7280] mb-1.5 flex items-center gap-1">
+              <Tag size={11} /> Extra discount (optional)
+            </p>
+            <div className="flex gap-1.5 items-center">
+              <button
+                onClick={() => setManualDiscount((d) => ({ ...d, type: "pct" }))}
+                className={`text-xs font-bold px-2.5 py-1.5 rounded-full shrink-0 ${manualDiscount.type === "pct" ? "bg-[#000000] text-white" : "bg-[#E7E9F3] text-[#6B7280]"}`}
+              >
+                %
+              </button>
+              <button
+                onClick={() => setManualDiscount((d) => ({ ...d, type: "amt" }))}
+                className={`text-xs font-bold px-2.5 py-1.5 rounded-full shrink-0 ${manualDiscount.type === "amt" ? "bg-[#000000] text-white" : "bg-[#E7E9F3] text-[#6B7280]"}`}
+              >
+                ₹
+              </button>
+              <input
+                type="number"
+                min="0"
+                placeholder={manualDiscount.type === "pct" ? "e.g. 10 for 10%" : "e.g. 50"}
+                value={manualDiscount.value}
+                onChange={(e) => setManualDiscount((d) => ({ ...d, value: e.target.value }))}
+                className="ks-input text-sm py-1.5 flex-1"
+              />
+            </div>
+          </div>
+
           <div className="flex gap-1.5 mb-4 bg-[#E7E9F3] p-1 rounded-full">
             <button
               onClick={() => setBillType("cash")}
@@ -580,10 +725,16 @@ function BillingPageInner() {
                 <span className="ks-mono">{rupee(subtotal)}</span>
               </div>
             )}
-            {discountAmount > 0 && (
+            {loyaltyDiscountAmount > 0 && (
               <div className="flex items-center justify-between text-xs" style={{ color: "#B5720B" }}>
                 <span>Loyalty discount (5%)</span>
-                <span className="ks-mono">−{rupee(discountAmount)}</span>
+                <span className="ks-mono">−{rupee(loyaltyDiscountAmount)}</span>
+              </div>
+            )}
+            {manualDiscountAmount > 0 && (
+              <div className="flex items-center justify-between text-xs" style={{ color: "#B5720B" }}>
+                <span>Extra discount{manualDiscount.type === "pct" ? ` (${manualDiscount.value}%)` : ""}</span>
+                <span className="ks-mono">−{rupee(manualDiscountAmount)}</span>
               </div>
             )}
             <div className="flex items-center justify-between pt-1">
@@ -641,6 +792,89 @@ function BillingPageInner() {
         <div className="ks-print-only">
           <PrintBillContent bill={lastBill} storeName={activeShop?.name} gstin={activeShop?.gstin} />
         </div>
+      )}
+
+      <div className="mt-6 ks-no-print" style={{ gridColumn: "1 / -1" }}>
+        <button
+          onClick={() => setShowHistory((v) => !v)}
+          className="flex items-center gap-2 text-sm font-semibold mb-3"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          <History size={15} />
+          Recent bills ({bills.length})
+          <span className="text-xs font-normal">{showHistory ? "▲ hide" : "▼ show"}</span>
+        </button>
+        {showHistory && (
+          <div className="ks-card overflow-hidden overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left ks-mono text-[11px] uppercase tracking-wide text-[#6B7280] border-b border-[#E7E9F3]">
+                  <th className="px-4 py-3 font-medium">Bill #</th>
+                  <th className="px-4 py-3 font-medium">Date</th>
+                  <th className="px-4 py-3 font-medium">Customer</th>
+                  <th className="px-4 py-3 font-medium">Type</th>
+                  <th className="px-4 py-3 font-medium text-right">Total</th>
+                  <th className="px-4 py-3 font-medium text-right">Profit</th>
+                  <th className="px-4 py-3 font-medium"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {bills.slice(0, 50).map((b) => {
+                  const profit = billProfit(b);
+                  const hasProfit = (b.items || []).some((l) => l.cost_price != null || items.find((i) => i.id === l.shop_product_id)?.cost_price != null);
+                  return (
+                    <tr key={b.id} className="border-b border-[#E7E9F3] last:border-0 hover:bg-[#F8F9FD]">
+                      <td className="px-4 py-2.5 ks-mono font-bold text-xs">{b.bill_no}</td>
+                      <td className="px-4 py-2.5 text-xs text-[#6B7280]">
+                        {new Date(b.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs">{b.customer_name || <span className="text-[#B0A996]">—</span>}</td>
+                      <td className="px-4 py-2.5">
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize"
+                          style={{ background: b.payment_type === "credit" ? "#F3E8FD" : "#E4F5F0", color: b.payment_type === "credit" ? "#B5399C" : "#4F46E5" }}
+                        >
+                          {b.payment_type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 ks-mono font-semibold text-right">{rupee(b.total)}</td>
+                      <td className="px-4 py-2.5 ks-mono text-right text-xs">
+                        {hasProfit ? (
+                          <span className="font-semibold" style={{ color: profit >= 0 ? "#4F46E5" : "#C13F45" }}>
+                            {profit >= 0 ? "+" : ""}{rupee(profit)}
+                          </span>
+                        ) : (
+                          <span className="text-[#B0A996]">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <button
+                          onClick={() => printBill(b)}
+                          className="text-[10px] px-2 py-1 rounded-full font-semibold"
+                          style={{ background: "#E7E9F3", color: "#6B7280" }}
+                        >
+                          Print
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {bills.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8 text-center text-sm text-[#6B7280]">No bills yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      {showVoiceBilling && (
+        <VoiceBillingModal
+          items={pricedItems}
+          onConfirm={handleVoiceBillingConfirm}
+          onClose={() => setShowVoiceBilling(false)}
+        />
       )}
       {pickerItem && (
         <QtyPickerModal

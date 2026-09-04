@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, ArrowUpCircle, ArrowDownCircle, Star, Loader2, Layers } from "lucide-react";
+import { Search, Plus, ArrowUpCircle, ArrowDownCircle, Star, Loader2, Layers, Barcode, ScanLine } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import ItemThumb from "@/components/ItemThumb";
 import CategoryChip from "@/components/CategoryChip";
 import AddItemModal from "@/components/AddItemModal";
 import AdjustStockModal from "@/components/AdjustStockModal";
 import BatchesModal from "@/components/BatchesModal";
+import BarcodeModal from "@/components/BarcodeModal";
+import ScanBillModal from "@/components/ScanBillModal";
 import { reorderSuggestion } from "@/lib/inventoryHelpers";
 import { rupee } from "@/lib/format";
 import { fetchShopItems, flattenShopProduct } from "@/lib/products";
@@ -33,6 +35,8 @@ function InventoryPageInner() {
   const [showAdd, setShowAdd] = useState(false);
   const [adjustItem, setAdjustItem] = useState(null);
   const [batchesItem, setBatchesItem] = useState(null);
+  const [barcodeItem, setBarcodeItem] = useState(null);
+  const [showScanBill, setShowScanBill] = useState(false);
 
   // Supports a "?add=1" deep link (e.g. from the dashboard's empty-stock
   // state) that jumps straight into the add-item flow.
@@ -158,9 +162,18 @@ function InventoryPageInner() {
             className="ks-input pl-9"
           />
         </div>
-        <button onClick={() => setShowAdd(true)} className="ks-btn-primary flex items-center gap-1.5">
-          <Plus size={16} /> Add new item
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowScanBill(true)}
+            className="ks-btn-outline flex items-center gap-1.5"
+            title="Scan supplier bill to auto-update stock"
+          >
+            <ScanLine size={15} /> Scan supplier bill
+          </button>
+          <button onClick={() => setShowAdd(true)} className="ks-btn-primary flex items-center gap-1.5">
+            <Plus size={16} /> Add new item
+          </button>
+        </div>
       </div>
 
       <div className="ks-card overflow-hidden overflow-x-auto">
@@ -251,6 +264,14 @@ function InventoryPageInner() {
                       >
                         <Layers size={13} />
                       </button>
+                      <button
+                        onClick={() => setBarcodeItem(i)}
+                        title="Print barcode"
+                        className="w-7 h-7 rounded-full flex items-center justify-center"
+                        style={{ background: "#E7E9F3", color: "#6B7280" }}
+                      >
+                        <Barcode size={13} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -279,6 +300,17 @@ function InventoryPageInner() {
       )}
       {batchesItem && (
         <BatchesModal item={batchesItem} supabase={supabase} activeShopId={activeShopId} onClose={() => setBatchesItem(null)} />
+      )}
+      {barcodeItem && <BarcodeModal item={barcodeItem} onClose={() => setBarcodeItem(null)} />}
+      {showScanBill && (
+        <ScanBillModal
+          items={items}
+          supabase={supabase}
+          activeShopId={activeShopId}
+          showToast={showToast}
+          onClose={() => setShowScanBill(false)}
+          onDone={() => { setShowScanBill(false); load(); }}
+        />
       )}
     </div>
   );
