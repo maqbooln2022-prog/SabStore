@@ -10,19 +10,27 @@ below, none of which were in the original brief).
 originally let one owner account run several shops (a shop switcher, an
 "Add shop" flow, a combined multi-store dashboard — see the note below
 this one). That's been reversed: each owner now gets exactly **one** shop,
-chosen at signup, and a `shops.owner_id` unique constraint enforces it at
-the database level (`supabase/migrations/013_one_shop_per_owner.sql`) —
+chosen at signup, enforced by a `shops.owner_id` unique constraint at the
+database level (`supabase/migrations/013_one_shop_per_owner.sql`) —
 different stores need different owner logins. The shop switcher, "Add
 shop" button, and the combined dashboard have been removed; onboarding
 (the "Set up your shop" screen right after signup, already asked for
 business type + name) is now the *only* way a shop gets created, and it
-only ever runs once per account. The project's own dev/test data (one
-account with 4 shops: SabStore, Trendy Boutique, Speed Auto Parts,
-SabStore Demo) was split into 4 separate owner logins to match — see
-`supabase/migrations/012_split_demo_shops_to_new_owners.sql` for that
-one-time data migration and its required manual step (the 3 new owners
-must sign up through the app themselves before that migration can run;
-this repo's assistant cannot create accounts or set passwords).
+only ever runs once per account.
+
+The project's own dev/test data — one account with 4 shops (SabStore,
+Trendy Boutique, Speed Auto Parts, SabStore Demo) plus a second account
+with 2 more (Sabstore, City Supermarket) — was split into 6 separate
+owner logins, one shop each, to match (`supabase/migrations/012` +
+`012b`). Two wrinkles worth knowing if this pattern comes up again:
+each of the 4 newly-created owners also clicked through "Set up your
+shop" themselves before the reassignment landed, creating an accidental
+duplicate shop each time — `012b` cleans those up by exact id. And the
+original 4-shop account's data migration was first written against the
+wrong email (`maqbooln2022@gmail.com`, which turned out to own the
+*second* multi-shop account, not the first) — worth double-checking
+which login actually owns what before writing an ownership-reassignment
+migration, rather than assuming.
 
 Note: the multi-store combined dashboard and vendor payables were
 originally scoped as a separate app ("Store Manager", its own spec —
