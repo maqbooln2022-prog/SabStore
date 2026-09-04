@@ -6,7 +6,7 @@ export default function Toast({ msg, tone }) {
   const styles = {
     err: { bg: "#E5484D", icon: <AlertTriangle size={16} /> },
     warn: { bg: "#F2A93B", icon: <AlertTriangle size={16} /> },
-    ok: { bg: "#4F46E5", icon: <Receipt size={16} /> },
+    ok: { bg: "var(--accent)", icon: <Receipt size={16} /> },
   }[tone || "ok"];
   return (
     <div

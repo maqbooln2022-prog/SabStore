@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, Loader2 } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import { ShopProvider, useShop } from "@/components/ShopContext";
@@ -14,6 +14,16 @@ function AppShell({ children }) {
   const { shops, activeShop, addShop, loading, toast, user } = useShop();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showStoreSettings, setShowStoreSettings] = useState(false);
+
+  // The shop's chosen theme drives every color token in globals.css via
+  // [data-theme] on <html> — see StoreSettingsModal for the picker. Reset
+  // to the default (no attribute = "light") once signed out.
+  useEffect(() => {
+    document.documentElement.dataset.theme = activeShop?.theme || "light";
+    return () => {
+      delete document.documentElement.dataset.theme;
+    };
+  }, [activeShop?.theme]);
 
   if (loading) {
     return (
@@ -29,15 +39,19 @@ function AppShell({ children }) {
 
   return (
     <div className="min-h-screen flex">
-      <div className="ks-no-print ks-mobile-bar fixed top-0 left-0 right-0 z-30 bg-white text-[#111827] items-center justify-between px-4 py-3 border-b border-[#E7E9F3] shadow-sm">
+      <div className="ks-no-print ks-mobile-bar ks-topbar fixed top-0 left-0 right-0 z-30 items-center justify-between px-4 py-3 shadow-sm">
         <div className="flex items-center gap-2">
           <span
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
-            style={{ background: "linear-gradient(135deg, #4F46E5, #818CF8)" }}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
+            style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
           >
             {initials(user)}
           </span>
-          <button onClick={() => setSidebarOpen(true)} className="w-8 h-8 flex items-center justify-center text-[#4B5563]">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="w-8 h-8 flex items-center justify-center"
+            style={{ color: "var(--text-secondary)" }}
+          >
             <Menu size={20} />
           </button>
         </div>

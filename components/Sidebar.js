@@ -95,9 +95,7 @@ export default function Sidebar({ onOpenSettings, onNavigate }) {
         key={item.href}
         href={item.href}
         onClick={() => onNavigate?.()}
-        className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold transition-colors ${
-          active ? "bg-white text-[#4338CA] shadow-md" : "text-white/70 hover:bg-white/10 hover:text-white"
-        }`}
+        className={`ks-sidebar-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold ${active ? "active" : ""}`}
       >
         <Icon size={17} />
         {item.label}
@@ -111,30 +109,25 @@ export default function Sidebar({ onOpenSettings, onNavigate }) {
   }
 
   return (
-    <div
-      className="h-full flex flex-col text-white"
-      style={{ background: "linear-gradient(190deg, #4F46E5 0%, #4338CA 45%, #2C2478 100%)" }}
-    >
+    <div className="h-full flex flex-col ks-sidebar">
       <div className="p-4 space-y-3">
-        <div className="rounded-2xl p-3 bg-white/10 border border-white/15 backdrop-blur-sm">
+        <div className="ks-sidebar-chip rounded-2xl p-3 backdrop-blur-sm">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0 text-white">
+            <div className="ks-sidebar-chip w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ks-sidebar-text-strong">
               <ShopTypeIcon type={activeShop.type} size={17} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs italic font-bold truncate">{activeShop.name}</p>
-              <p className="text-[10px] italic text-white/70 font-medium">{shopTypeInfo(activeShop.type).label}</p>
+              <p className="text-xs italic font-bold truncate ks-sidebar-text-strong">{activeShop.name}</p>
+              <p className="text-[10px] italic font-medium ks-sidebar-text">{shopTypeInfo(activeShop.type).label}</p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2 px-1">
-          <span
-            className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 bg-white/20 border border-white/25"
-          >
+          <span className="ks-sidebar-chip w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ks-sidebar-text-strong shrink-0">
             {initials(user)}
           </span>
-          <p className="text-[11px] italic text-white/60">
+          <p className="text-[11px] italic ks-sidebar-muted">
             {greeting()}
             {displayName(user) ? `, ${displayName(user)}` : ""} 👋
           </p>
@@ -147,8 +140,8 @@ export default function Sidebar({ onOpenSettings, onNavigate }) {
           <>
             <button
               onClick={() => setMoreOpen((v) => !v)}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold transition-colors ${
-                moreActive && !moreOpen ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
+              className={`ks-sidebar-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold ${
+                moreActive && !moreOpen ? "active" : ""
               }`}
             >
               <MoreHorizontal size={17} />
@@ -160,18 +153,18 @@ export default function Sidebar({ onOpenSettings, onNavigate }) {
         )}
       </nav>
 
-      <div className="p-3 border-t border-white/15">
+      <div className="p-3 border-t ks-sidebar-border">
         {pendingCount > 0 && (
           <div className="px-3.5 pb-2">
             <SyncStatusBadge pendingCount={pendingCount} />
           </div>
         )}
-        <div className="ks-mono text-[10px] italic text-white/40 px-3.5 pb-2">{todayStr()}</div>
+        <div className="ks-mono text-[10px] italic ks-sidebar-muted px-3.5 pb-2">{todayStr()}</div>
         {isPlatformAdmin && (
           <Link
             href="/admin"
             onClick={() => onNavigate?.()}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold text-white/70 hover:bg-white/10 hover:text-white"
+            className="ks-sidebar-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold"
           >
             <ShieldCheck size={17} /> Platform admin
           </Link>
@@ -179,14 +172,14 @@ export default function Sidebar({ onOpenSettings, onNavigate }) {
         {isOwner && (
           <button
             onClick={onOpenSettings}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold text-white/70 hover:bg-white/10 hover:text-white"
+            className="ks-sidebar-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold"
           >
             <Settings size={17} /> Store settings
           </button>
         )}
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold text-white/70 hover:bg-white/10 hover:text-white"
+          className="ks-sidebar-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold"
         >
           <LogOut size={17} /> Sign out
         </button>

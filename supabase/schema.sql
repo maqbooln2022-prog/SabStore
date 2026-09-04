@@ -29,6 +29,7 @@ create table shops (
   enabled_modules text[] not null default array[
     'dashboard','inventory','billing','history','credit','dayclose','expenses','cashbook','suppliers'
   ],
+  theme text not null default 'light' check (theme in ('light', 'dark', 'warm')),
   created_at timestamptz not null default now()
 );
 
