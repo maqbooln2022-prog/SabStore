@@ -504,52 +504,6 @@ function BillingPageInner() {
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap mt-3">
-          {categories.map((cat) => {
-            const c = categoryColor(cat);
-            const active = activeCategory === cat;
-            return (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(active ? null : cat)}
-                className="text-xs font-semibold px-2.5 py-1 rounded-full transition-transform"
-                style={{ background: active ? c.text : c.bg, color: active ? "#fff" : c.text, transform: active ? "scale(1.04)" : "none" }}
-              >
-                {cat}
-              </button>
-            );
-          })}
-        </div>
-
-        {activeCategory && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
-            {categoryItems.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => setPickerItem(r)}
-                disabled={r.stock <= 0}
-                className="ks-card text-left p-3 hover:-translate-y-0.5 transition-transform disabled:opacity-40 disabled:hover:translate-y-0"
-              >
-                <div className="flex items-center gap-1.5">
-                  <ItemThumb item={r} size={22} />
-                  <span className="ks-mono text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#E7E9F3", color: "#6B7280" }}>
-                    {r.code}
-                  </span>
-                  <span className="font-semibold text-sm leading-tight">{r.name}</span>
-                  {r.clearancePct && (
-                    <span className="ks-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "#C13F45", color: "#fff" }}>
-                      −{r.clearancePct}%
-                    </span>
-                  )}
-                </div>
-                <div className="ks-mono text-xs text-[#6B7280] mt-1">
-                  {r.originalPrice && <span className="line-through mr-1">{rupee(r.originalPrice)}</span>}
-                  {rupee(r.price)} · {r.stock} {r.unit} left
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
 
         <div className="ks-card mt-4 overflow-hidden">
           <div className="px-5 py-4 border-b border-[#E7E9F3]">
