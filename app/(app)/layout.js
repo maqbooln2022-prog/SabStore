@@ -5,7 +5,7 @@ import { Menu, Loader2 } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import { ShopProvider, useShop } from "@/components/ShopContext";
 import Sidebar from "@/components/Sidebar";
-import { AddShopModal, AddShopOnboarding } from "@/components/AddShopModal";
+import { AddShopOnboarding } from "@/components/ShopOnboarding";
 import StoreSettingsModal from "@/components/StoreSettingsModal";
 import Toast from "@/components/ui/Toast";
 import { initials } from "@/lib/format";
@@ -13,7 +13,6 @@ import { initials } from "@/lib/format";
 function AppShell({ children }) {
   const { shops, activeShop, addShop, loading, toast, user } = useShop();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showAddShop, setShowAddShop] = useState(false);
   const [showStoreSettings, setShowStoreSettings] = useState(false);
 
   if (loading) {
@@ -54,14 +53,9 @@ function AppShell({ children }) {
       )}
 
       <div className={`ks-no-print ks-sidebar-wrap${sidebarOpen ? " open" : ""}`}>
-        <Sidebar
-          onAddShop={() => setShowAddShop(true)}
-          onOpenSettings={() => setShowStoreSettings(true)}
-          onNavigate={() => setSidebarOpen(false)}
-        />
+        <Sidebar onOpenSettings={() => setShowStoreSettings(true)} onNavigate={() => setSidebarOpen(false)} />
       </div>
 
-      {showAddShop && <AddShopModal onClose={() => setShowAddShop(false)} onAdd={addShop} />}
       {showStoreSettings && <StoreSettingsModal onClose={() => setShowStoreSettings(false)} />}
 
       <div className="ks-main flex-1 min-w-0">

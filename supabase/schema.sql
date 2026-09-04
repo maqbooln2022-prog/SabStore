@@ -18,9 +18,10 @@
 create extension if not exists "uuid-ossp";
 
 -- ---------- Shops ----------
+-- One shop per owner, chosen at signup — see migrations/013_one_shop_per_owner.sql.
 create table shops (
   id uuid primary key default uuid_generate_v4(),
-  owner_id uuid not null references auth.users(id) on delete cascade,
+  owner_id uuid not null unique references auth.users(id) on delete cascade,
   name text not null,
   type text not null check (type in ('kirana', 'supermarket', 'automobile', 'clothing', 'other')),
   gstin text,

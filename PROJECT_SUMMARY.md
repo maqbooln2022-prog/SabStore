@@ -1,17 +1,37 @@
 # SabStore — Project Summary
 
-Current state of the build, as of 2026-09-03. `PROJECT_BRIEF.md` and
+Current state of the build, as of 2026-09-04. `PROJECT_BRIEF.md` and
 `README.md` describe the original plan; this file describes what actually
 exists now, since the two have diverged (most notably the shared-catalog
-data model, the staff/roles system, and the multi-store/vendor-payables
-features below, none of which were in the original brief).
+data model, the staff/roles system, and the vendor-payables features
+below, none of which were in the original brief).
+
+**Note — architecture pivot (2026-09-04): one owner, one shop.** SabStore
+originally let one owner account run several shops (a shop switcher, an
+"Add shop" flow, a combined multi-store dashboard — see the note below
+this one). That's been reversed: each owner now gets exactly **one** shop,
+chosen at signup, and a `shops.owner_id` unique constraint enforces it at
+the database level (`supabase/migrations/013_one_shop_per_owner.sql`) —
+different stores need different owner logins. The shop switcher, "Add
+shop" button, and the combined dashboard have been removed; onboarding
+(the "Set up your shop" screen right after signup, already asked for
+business type + name) is now the *only* way a shop gets created, and it
+only ever runs once per account. The project's own dev/test data (one
+account with 4 shops: SabStore, Trendy Boutique, Speed Auto Parts,
+SabStore Demo) was split into 4 separate owner logins to match — see
+`supabase/migrations/012_split_demo_shops_to_new_owners.sql` for that
+one-time data migration and its required manual step (the 3 new owners
+must sign up through the app themselves before that migration can run;
+this repo's assistant cannot create accounts or set passwords).
 
 Note: the multi-store combined dashboard and vendor payables were
 originally scoped as a separate app ("Store Manager", its own spec —
 see git history around 2026-09-01 for `app-summary.md`) before being
 folded into SabStore's own owner dashboard instead, on the reasoning
-that SabStore already has the login, multi-shop model, and most of the
-underlying data these features needed.
+that SabStore already had the login and multi-shop model these features
+needed. The multi-store dashboard piece was later removed entirely by
+the pivot above; vendor payables (Suppliers) is shop-scoped regardless
+of the owner model and was unaffected.
 
 Note: a user-initials avatar badge was added to the sidebar/topbar as a UI
 polish pass, and the request that prompted it also named a batch of
@@ -25,12 +45,13 @@ API access but credentials haven't been collected yet).
 
 ## What it is
 
-A multi-shop billing, inventory, and udhaar (credit) management app for
-small Indian retail businesses (kirana stores, supermarkets, automobile/
-auto-parts shops, clothing boutiques, or any other business). One owner
-account can run several shops of different types, each with its own
-inventory, bills, credit ledger, and cash tracking — with staff who can be
-given a real login and limited, per-feature permissions.
+A billing, inventory, and udhaar (credit) management app for small Indian
+retail businesses (kirana stores, supermarkets, automobile/auto-parts
+shops, clothing boutiques, or any other business). Each owner runs
+exactly one shop — picking its business type and name as the first thing
+they do after signing up — with its own inventory, bills, credit ledger,
+and cash tracking, and can bring on staff who get a real login and
+limited, per-feature permissions.
 
 ## Stack
 
@@ -66,8 +87,9 @@ schema are in `supabase/migrations/001` through `004`.
 
 ## Auth & roles
 
-- **Owners** sign up/sign in with email + password and get full access to
-  every enabled module on every shop they own.
+- **Owners** sign up/sign in with email + password, pick their shop's
+  business type and name once (right after signup — see the pivot note
+  above), and get full access to every enabled module on that shop.
 - **Staff** get a real, separate Supabase auth account (a short staff code
   + a 6+ digit PIN as their password), created server-side by the owner
   via `app/api/staff/create` using the Supabase service-role key. They see
@@ -79,13 +101,12 @@ schema are in `supabase/migrations/001` through `004`.
 
 ## Features built
 
-- **Multi-shop switcher** — add, rename, configure, and delete shops from
-  one account; a shop-type picker (kirana/supermarket/automobile/
-  clothing/other) drives sensible defaults.
-- **Add Shop flow** — starts empty by default (manual entry); optional
-  toggle to seed a generic starter catalog for the business type, or a
-  separate tab to import selected items (with prices/categories) from one
-  of the owner's other existing shops.
+- **Shop onboarding** (`components/ShopOnboarding.js`) — the one-time,
+  unskippable screen a brand-new account lands on: pick a business type
+  (kirana/supermarket/automobile/clothing/other, driving sensible
+  defaults) and a shop name, with an optional toggle to seed a generic
+  starter catalog for that business type. Runs exactly once per account
+  — see the one-owner-one-shop pivot note above.
 - **Inventory** — add/search items by name or code, category chips, stock
   in/out with reason + optional supplier, margin display, reorder
   suggestions based on sales pace.
@@ -116,9 +137,6 @@ schema are in `supabase/migrations/001` through `004`.
 - **Dashboard** — today's sales/profit hero, clickable stat cards (items in
   stock, stock value, low stock, today's profit) with detail breakdowns,
   an "Add items" shortcut when a shop's inventory is empty, top customers.
-  Owners with 2+ shops also see a combined-profit summary above this —
-  a per-shop card grid (today's profit per shop); clicking a card
-  switches the active shop shown below.
 - **Staff management** (owner-only) — add/edit/remove staff, set a name,
   PIN, and per-module permission checklist; staff sign in from a dedicated
   "staff" tab on the login page using their staff code + PIN.

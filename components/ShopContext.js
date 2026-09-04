@@ -106,15 +106,10 @@ export function ShopProvider({ children }) {
     return callApi(supabase, path, body);
   }
 
-  // By default a new shop starts empty — the owner adds their own items via
-  // Inventory. Two opt-in ways to skip typing everything by hand:
-  //   - seedTemplate: pre-fill a generic starter catalog for the business type
-  //   - importItems: reuse items (from lib/products.js's fetchShopItems shape)
-  //     the owner already set up in one of their other shops — since products
-  //     are an owner-level shared catalog, this just links a new shop_products
-  //     row to the same product_id rather than duplicating it. Stock always
-  //     starts at 0 since it's a physically new shop.
-  async function addShop(name, type, { seedTemplate = false, importItems = [] } = {}) {
+  // A new shop starts empty by default — the owner adds their own items via
+  // Inventory. seedTemplate opts into pre-filling a generic starter catalog
+  // for the business type instead of typing everything in by hand.
+  async function addShop(name, type, { seedTemplate = false } = {}) {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -136,21 +131,7 @@ export function ShopProvider({ children }) {
     });
     if (memberError) throw memberError;
 
-    if (importItems.length > 0) {
-      const shopProductRows = importItems.map((it) => ({
-        shop_id: shop.id,
-        product_id: it.product_id,
-        code: it.code,
-        price: it.price,
-        cost_price: it.cost_price,
-        gst: it.gst,
-        stock: 0,
-        low_at: it.low_at,
-        quick: it.quick,
-      }));
-      const { error: importError } = await supabase.from("shop_products").insert(shopProductRows);
-      if (importError) throw importError;
-    } else if (seedTemplate) {
+    if (seedTemplate) {
       const seedItems = seedItemsForShop(type);
       if (seedItems.length > 0) {
         // Seed items split across the owner-level `products` catalog and this
@@ -193,18 +174,17 @@ export function ShopProvider({ children }) {
     return data;
   }
 
-  // Permanently deletes the active shop and everything under it (items,
-  // bills, movements, credits, day-close history, expenses, supplier
-  // links, staff) — schema.sql cascades all of that from the shops row.
-  // Products/suppliers themselves are owner-level and untouched, since
-  // they may still be linked to the owner's other shops.
+  // Permanently deletes the shop and everything under it (items, bills,
+  // movements, credits, day-close history, expenses, supplier links,
+  // staff) — schema.sql cascades all of that from the shops row. Leaves
+  // the owner with zero shops, which sends them back to onboarding to
+  // set up a new one (app/(app)/layout.js checks shops.length === 0).
   async function deleteActiveShop() {
     if (!activeShopId) return;
     const { error } = await supabase.from("shops").delete().eq("id", activeShopId);
     if (error) throw error;
-    const remaining = shops.filter((s) => s.id !== activeShopId);
-    setShops(remaining);
-    setActiveShopId(remaining[0]?.id ?? null);
+    setShops([]);
+    setActiveShopId(null);
   }
 
   const activeShop = shops.find((s) => s.id === activeShopId) || null;

@@ -14,8 +14,6 @@ import {
   BookOpen,
   Truck,
   Users,
-  ChevronDown,
-  Plus,
   Settings,
   LogOut,
   ShieldCheck,
@@ -48,9 +46,8 @@ const TOP_LEVEL_KEYS = ["dashboard", "billing", "inventory", "history"];
 
 const todayStr = () => new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
-export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
-  const { supabase, shops, activeShop, activeShopId, setActiveShopId, user, isOwner, hasPermission, pendingCount, isPlatformAdmin } =
-    useShop();
+export default function Sidebar({ onOpenSettings, onNavigate }) {
+  const { supabase, activeShop, activeShopId, user, isOwner, hasPermission, pendingCount, isPlatformAdmin } = useShop();
   const pathname = usePathname();
   const router = useRouter();
   const [lowStockCount, setLowStockCount] = useState(0);
@@ -119,33 +116,15 @@ export default function Sidebar({ onAddShop, onOpenSettings, onNavigate }) {
       style={{ background: "linear-gradient(190deg, #4F46E5 0%, #4338CA 45%, #2C2478 100%)" }}
     >
       <div className="p-4 space-y-3">
-        <div className="rounded-2xl p-3 space-y-2.5 bg-white/10 border border-white/15 backdrop-blur-sm">
+        <div className="rounded-2xl p-3 bg-white/10 border border-white/15 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0 text-white">
               <ShopTypeIcon type={activeShop.type} size={17} />
             </div>
-            <div className="relative flex-1 min-w-0">
-              <select
-                value={activeShopId}
-                onChange={(e) => setActiveShopId(e.target.value)}
-                className="w-full appearance-none rounded-xl pl-3 pr-8 py-2 text-xs italic font-bold bg-white/15 text-white border border-white/25 focus:outline-none focus:border-white/60"
-              >
-                {shops.map((s) => (
-                  <option key={s.id} value={s.id} style={{ color: "#000" }}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={15} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-white/70" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs italic font-bold truncate">{activeShop.name}</p>
+              <p className="text-[10px] italic text-white/70 font-medium">{shopTypeInfo(activeShop.type).label}</p>
             </div>
-          </div>
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[10px] italic text-white/70 font-medium">{shopTypeInfo(activeShop.type).label}</span>
-            {isOwner && (
-              <button onClick={onAddShop} className="flex items-center gap-1 text-[10px] italic font-bold text-white">
-                <Plus size={12} /> Add shop
-              </button>
-            )}
           </div>
         </div>
 
