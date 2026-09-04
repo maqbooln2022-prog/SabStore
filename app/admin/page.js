@@ -9,12 +9,12 @@ import {
   Trash2,
   Loader2,
   Store,
-  ArrowLeft,
   AlertTriangle,
   ChevronDown,
   Pencil,
   ArrowUpCircle,
   Users,
+  LogOut,
 } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import Modal from "@/components/ui/Modal";
@@ -27,7 +27,7 @@ const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-di
 
 export default function AdminPage() {
   return (
-    <AuthGuard>
+    <AuthGuard redirectTo="/admin/login">
       <AdminPageInner />
     </AuthGuard>
   );
@@ -63,10 +63,13 @@ function AdminPageInner() {
 
   useEffect(() => {
     let active = true;
-    supabase.rpc("is_platform_admin").then(({ data: isAdmin }) => {
+    supabase.rpc("is_platform_admin").then(async ({ data: isAdmin }) => {
       if (!active) return;
       if (!isAdmin) {
-        router.replace("/dashboard");
+        // Whoever this is, they don't belong in the regular shop app either
+        // — /admin/login is a dead-end door, not a side entrance into it.
+        await supabase.auth.signOut();
+        router.replace("/admin/login");
         return;
       }
       setAllowed(true);
@@ -76,6 +79,11 @@ function AdminPageInner() {
       active = false;
     };
   }, [supabase, router]);
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.replace("/admin/login");
+  }
 
   useEffect(() => {
     if (allowed) load();
@@ -149,14 +157,17 @@ function AdminPageInner() {
   return (
     <main className="min-h-screen ks-page-pad py-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-3 mb-1">
-        <button onClick={() => router.push("/dashboard")} className="w-8 h-8 rounded-full bg-[#E7E9F3] flex items-center justify-center">
-          <ArrowLeft size={15} />
-        </button>
         <h1 className="ks-display text-xl font-bold flex items-center gap-2">
           <ShieldCheck size={20} className="text-[#4F46E5]" /> Platform admin
         </h1>
+        <button
+          onClick={handleSignOut}
+          className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-[#6B7280] hover:text-[#111827] px-3 py-1.5 rounded-full bg-[#E7E9F3]"
+        >
+          <LogOut size={13} /> Sign out
+        </button>
       </div>
-      <p className="text-sm text-[#6B7280] mb-5 pl-11">Every owner and shop on SabStore, not just your own.</p>
+      <p className="text-sm text-[#6B7280] mb-5">Every owner and shop on SabStore.</p>
 
       {loading && (
         <div className="flex items-center gap-2 text-sm text-muted">

@@ -16,7 +16,6 @@ import {
   Users,
   Settings,
   LogOut,
-  ShieldCheck,
   Tag,
   MoreHorizontal,
   ChevronRight,
@@ -47,7 +46,7 @@ const TOP_LEVEL_KEYS = ["dashboard", "billing", "inventory", "history"];
 const todayStr = () => new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
 export default function Sidebar({ onOpenSettings, onNavigate }) {
-  const { supabase, activeShop, activeShopId, user, isOwner, hasPermission, pendingCount, isPlatformAdmin } = useShop();
+  const { supabase, activeShop, activeShopId, user, isOwner, hasPermission, pendingCount } = useShop();
   const pathname = usePathname();
   const router = useRouter();
   const [lowStockCount, setLowStockCount] = useState(0);
@@ -160,15 +159,6 @@ export default function Sidebar({ onOpenSettings, onNavigate }) {
           </div>
         )}
         <div className="ks-mono text-[10px] italic ks-sidebar-muted px-3.5 pb-2">{todayStr()}</div>
-        {isPlatformAdmin && (
-          <Link
-            href="/admin"
-            onClick={() => onNavigate?.()}
-            className="ks-sidebar-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold"
-          >
-            <ShieldCheck size={17} /> Platform admin
-          </Link>
-        )}
         {isOwner && (
           <button
             onClick={onOpenSettings}

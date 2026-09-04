@@ -19,7 +19,6 @@ export function ShopProvider({ children }) {
   const [toast, setToast] = useState(null);
   const [user, setUser] = useState(null);
   const [currentMember, setCurrentMember] = useState(null);
-  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const { run: runQueued, pendingCount } = useOfflineQueue(supabase);
 
   const showToast = useCallback((msg, tone = "ok") => {
@@ -47,24 +46,6 @@ export function ShopProvider({ children }) {
     loadShops();
     supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
   }, [loadShops, supabase]);
-
-  // A global, non-shop-scoped role — most users will never be one, so
-  // this quietly resolves to false rather than blocking anything.
-  useEffect(() => {
-    if (!user) {
-      setIsPlatformAdmin(false);
-      return;
-    }
-    let active = true;
-    supabase
-      .rpc("is_platform_admin")
-      .then(({ data }) => {
-        if (active) setIsPlatformAdmin(!!data);
-      });
-    return () => {
-      active = false;
-    };
-  }, [supabase, user]);
 
   // Which shop_members row (role + permissions) the signed-in user holds
   // for the active shop — drives nav filtering and action gating.
@@ -218,7 +199,6 @@ export function ShopProvider({ children }) {
         callStaffApi,
         runQueued,
         pendingCount,
-        isPlatformAdmin,
       }}
     >
       {children}
