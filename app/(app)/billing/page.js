@@ -24,6 +24,7 @@ import { whatsappLink, billMessageText, taxBreakup } from "@/lib/messaging";
 import { parseSpokenQuantity, matchItemFromSpeech } from "@/lib/voiceHelpers";
 import { fetchShopItems } from "@/lib/products";
 import { fetchActiveOffers, activeDiscountMap, clearancePrice } from "@/lib/clearance";
+import { cacheProducts, getCachedProducts, cacheBills, getCachedBills } from "@/lib/productCache";
 import ModuleGuard from "@/components/ModuleGuard";
 
 export default function BillingPage() {
@@ -59,6 +60,20 @@ function BillingPageInner() {
   const load = useCallback(async () => {
     if (!activeShopId) return;
     setLoading(true);
+
+    const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
+
+    if (!isOnline) {
+      // Serve products and bills from localStorage — enough to make a bill
+      // and do loyal-customer detection without any network call.
+      const cachedItems = getCachedProducts(activeShopId);
+      const cachedBillsList = getCachedBills(activeShopId);
+      if (cachedItems) setItems(cachedItems);
+      if (cachedBillsList) setBills(cachedBillsList);
+      setLoading(false);
+      return;
+    }
+
     const [itemsData, { data: billsData }, offersData] = await Promise.all([
       fetchShopItems(supabase, activeShopId),
       supabase.from("bills").select("*").eq("shop_id", activeShopId).order("date", { ascending: false }),
@@ -67,6 +82,11 @@ function BillingPageInner() {
     setItems(itemsData);
     setBills(billsData || []);
     setDiscountMap(activeDiscountMap(offersData));
+
+    // Write to cache so the next offline session has fresh data
+    cacheProducts(activeShopId, itemsData);
+    cacheBills(activeShopId, billsData || []);
+
     setLoading(false);
   }, [supabase, activeShopId]);
 
