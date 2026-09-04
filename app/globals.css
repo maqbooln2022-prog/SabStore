@@ -5,13 +5,15 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 
 /* =========================================================
-   Design tokens — modeled on real Indian business software
-   (Vyapar, Zoho Books): white/light surfaces, one confident
-   accent, dense compact cards, restrained corners — not a
-   decorative gradient-heavy dashboard. Three palettes, applied
-   via [data-theme] on <html> (see app/(app)/layout.js).
-   :root is the default ("light") so pages rendered before a
-   shop's theme is known (e.g. /login) still look intentional.
+   Design tokens — content surfaces modeled on real Indian
+   business software (Vyapar, Zoho Books): white/light, one
+   confident accent, dense compact cards, restrained corners.
+   Sidebar is a separate warm espresso + marigold register (an
+   explicit pick — see the "Market Day" concept, not the same
+   accent as the content area). Three palettes, applied via
+   [data-theme] on <html> (see app/(app)/layout.js). :root is
+   the default ("light") so pages rendered before a shop's
+   theme is known (e.g. /login) still look intentional.
    ========================================================= */
 :root {
   --font-display: "Inter", sans-serif;
@@ -36,15 +38,15 @@
   --radius-card: 12px;
   --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
 
-  --sidebar-bg: #FFFFFF;
-  --sidebar-text: #4B5563;
-  --sidebar-text-strong: #111827;
-  --sidebar-muted: #9CA3AF;
-  --sidebar-active-bg: #EEF2FF;
-  --sidebar-active-text: var(--accent);
-  --sidebar-hover-bg: #F3F4F6;
-  --sidebar-chip-bg: #F3F4F6;
-  --sidebar-border: #E5E7EB;
+  --sidebar-bg: #2B2116;
+  --sidebar-text: #D9CDBB;
+  --sidebar-text-strong: #FBF6EC;
+  --sidebar-muted: #A89B87;
+  --sidebar-active-bg: #F2A93B;
+  --sidebar-active-text: #2B2116;
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+  --sidebar-chip-bg: rgba(255, 255, 255, 0.08);
+  --sidebar-border: rgba(255, 255, 255, 0.1);
 }
 
 :root[data-theme="dark"] {
