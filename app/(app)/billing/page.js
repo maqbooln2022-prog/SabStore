@@ -419,32 +419,25 @@ function BillingPageInner() {
             <div className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-2 flex items-center gap-1.5">
               <Star size={12} fill="#F2A93B" color="#F2A93B" /> Quick add
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
               {quickItems.map((r) => (
                 <button
                   key={r.id}
                   onClick={() => setPickerItem(r)}
                   disabled={r.stock <= 0}
-                  className="ks-card text-left p-3 hover:-translate-y-0.5 transition-transform disabled:opacity-40 disabled:hover:translate-y-0"
+                  className="flex items-center gap-2 px-3 py-2 rounded-full border shrink-0 transition-colors disabled:opacity-40"
+                  style={{ background: "var(--bg-surface)", borderColor: "#E7E9F3" }}
                 >
-                  <div className="flex items-center gap-2">
-                    <ItemThumb item={r} size={28} />
-                    <div className="font-semibold text-sm leading-tight flex items-center gap-1.5">
-                      <span className="ks-mono text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#E7E9F3", color: "#6B7280" }}>
-                        {r.code}
-                      </span>
-                      {r.name}
-                    </div>
-                    {r.clearancePct && (
-                      <span className="ks-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "#C13F45", color: "#fff" }}>
-                        −{r.clearancePct}%
-                      </span>
-                    )}
-                  </div>
-                  <div className="ks-mono text-xs text-[#6B7280] mt-1">
-                    {r.originalPrice && <span className="line-through mr-1">{rupee(r.originalPrice)}</span>}
-                    {rupee(r.price)} · {r.stock} {r.unit} left
-                  </div>
+                  <ItemThumb item={r} size={20} />
+                  <span className="ks-mono text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#E7E9F3", color: "#6B7280" }}>
+                    {r.code}
+                  </span>
+                  <span className="font-semibold text-sm whitespace-nowrap">{r.name}</span>
+                  {r.clearancePct ? (
+                    <span className="ks-mono text-[10px] font-bold" style={{ color: "#C13F45" }}>−{r.clearancePct}%&nbsp;{rupee(r.price)}</span>
+                  ) : (
+                    <span className="ks-mono text-[11px] text-[#6B7280]">{rupee(r.price)}</span>
+                  )}
                 </button>
               ))}
             </div>
