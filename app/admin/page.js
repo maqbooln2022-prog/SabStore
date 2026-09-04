@@ -19,6 +19,10 @@ import {
   LogOut,
   LayoutDashboard,
   Building2,
+  ClipboardList,
+  IndianRupee,
+  Wallet,
+  Clock,
 } from "lucide-react";
 import {
   PieChart,
@@ -87,6 +91,8 @@ function AdminPageInner() {
   const [editMember, setEditMember] = useState(null);
   const [confirmTransfer, setConfirmTransfer] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [auditLog, setAuditLog] = useState(null);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   useEffect(() => {
     document.documentElement.dataset.theme = "dark";
@@ -133,6 +139,24 @@ function AdminPageInner() {
   useEffect(() => {
     if (allowed) load();
   }, [allowed, load]);
+
+  async function loadAuditLog() {
+    if (auditLog) return; // only fetch once per session
+    setAuditLoading(true);
+    try {
+      const json = await callApi(supabase, "/api/admin/audit-log", null, "GET");
+      setAuditLog(json.log || []);
+    } catch {
+      setAuditLog([]);
+    } finally {
+      setAuditLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === "audit" && allowed) loadAuditLog();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, allowed]);
 
   async function suspendOwner(owner) {
     setBusyId(owner.id);
@@ -235,18 +259,28 @@ function AdminPageInner() {
     );
   }
 
+  const fmtRupee = (n) =>
+    n >= 10_00_000
+      ? `₹${(n / 10_00_000).toFixed(1)}L`
+      : n >= 1_000
+      ? `₹${(n / 1_000).toFixed(1)}K`
+      : `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+
   const STATS = data
     ? [
         { label: "Owners", value: data.totals.ownerCount, icon: ShieldCheck },
         { label: "Staff", value: data.totals.staffCount, icon: UserCog },
         { label: "Shops", value: data.totals.shopCount, icon: Store },
         { label: "Bills", value: data.totals.billCount, icon: Receipt },
+        { label: "Platform GMV", value: fmtRupee(data.totals.platformGmv || 0), icon: IndianRupee },
+        { label: "Udhaar out", value: fmtRupee(data.totals.udhaaarOutstanding || 0), icon: Wallet },
       ]
     : [];
 
   const TABS = [
     { key: "overview", label: "Overview", icon: LayoutDashboard },
     { key: "shops", label: "Owners & Shops", icon: Building2 },
+    { key: "audit", label: "Audit log", icon: ClipboardList },
   ];
 
   return (
@@ -332,6 +366,10 @@ function AdminPageInner() {
                 setConfirmTransfer={setConfirmTransfer}
               />
             )}
+
+            {activeTab === "audit" && (
+              <AuditTab log={auditLog} loading={auditLoading} onRefresh={() => { setAuditLog(null); loadAuditLog(); }} />
+            )}
           </div>
         </main>
       </div>
@@ -411,7 +449,7 @@ function OverviewTab({ stats, chartData }) {
       </div>
 
       {/* Stat tiles */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {stats.map((s) => (
           <div key={s.label} className="ks-card p-4">
             <div
@@ -600,6 +638,11 @@ function ShopsTab({ owners, expandedShopId, setExpandedShopId, busyId, reinstate
                         <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
                           1 owner · {shop.staff_count} staff · {shop.bill_count} bill{shop.bill_count === 1 ? "" : "s"}
                         </span>
+                        {shop.last_bill_at && (
+                          <span className="flex items-center gap-1 text-xs shrink-0" style={{ color: "var(--text-secondary)" }}>
+                            <Clock size={11} /> {fmtDate(shop.last_bill_at)}
+                          </span>
+                        )}
                         <span
                           onClick={(e) => { e.stopPropagation(); setConfirmDeleteShop(shop); }}
                           role="button"
@@ -676,6 +719,81 @@ function ShopsTab({ owners, expandedShopId, setExpandedShopId, busyId, reinstate
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+const ACTION_META = {
+  suspend_owner:      { label: "Suspended owner",      color: DANGER_TEXT,   bg: DANGER_BG },
+  reinstate_owner:    { label: "Reinstated owner",     color: SUCCESS_TEXT,  bg: SUCCESS_BG },
+  delete_shop:        { label: "Deleted shop",         color: "#F2A93B",     bg: "rgba(242,169,59,0.14)" },
+  update_member:      { label: "Updated member",       color: "#7EB3F9",     bg: "rgba(91,124,250,0.14)" },
+  transfer_ownership: { label: "Transferred ownership",color: "#A78BFA",     bg: "rgba(167,139,250,0.14)" },
+};
+
+function AuditTab({ log, loading, onRefresh }) {
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 py-10 justify-center text-sm" style={{ color: "var(--text-secondary)" }}>
+        <Loader2 size={16} className="animate-spin" /> Loading audit log…
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-end justify-between">
+        <div>
+          <h2 className="font-bold text-lg mb-1">Audit log</h2>
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            Every sensitive admin action, newest first.
+          </p>
+        </div>
+        <button
+          onClick={onRefresh}
+          className="text-xs font-semibold px-3 py-1.5 rounded-full"
+          style={{ background: "var(--bg-surface-alt)", color: "var(--text-secondary)" }}
+        >
+          Refresh
+        </button>
+      </div>
+
+      {!log || log.length === 0 ? (
+        <p className="text-sm text-center py-10" style={{ color: "var(--text-secondary)" }}>
+          No actions logged yet. Suspend, reinstate, or delete something to see it here.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {log.map((row) => {
+            const m = ACTION_META[row.action] || { label: row.action, color: "var(--text-secondary)", bg: "var(--bg-surface-alt)" };
+            const detail =
+              row.meta?.ownerEmail ||
+              row.meta?.shopName ||
+              row.meta?.name ||
+              row.target_id?.slice(0, 8) + "…";
+            return (
+              <div
+                key={row.id}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
+                style={{ background: "var(--bg-surface)" }}
+              >
+                <span
+                  className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0"
+                  style={{ background: m.bg, color: m.color }}
+                >
+                  {m.label}
+                </span>
+                <span className="truncate flex-1" style={{ color: "var(--text-secondary)" }}>
+                  {detail}
+                </span>
+                <span className="text-xs shrink-0 tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                  {fmtDate(row.created_at)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

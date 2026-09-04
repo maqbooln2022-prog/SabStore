@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/supabaseAdmin";
+import { requireAdmin, logAdminAction } from "@/lib/supabaseAdmin";
 
 // Deletes any shop platform-wide, regardless of who owns it — schema.sql
 // cascades everything under it (items, bills, movements, credits,
@@ -12,8 +12,10 @@ export async function POST(request) {
   const { shopId } = await request.json();
   if (!shopId) return NextResponse.json({ error: "shopId is required" }, { status: 400 });
 
+  const { data: shop } = await admin.from("shops").select("name, owner_id").eq("id", shopId).maybeSingle();
   const { error: deleteError } = await admin.from("shops").delete().eq("id", shopId);
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
 
+  await logAdminAction(admin, caller.id, caller.email, "delete_shop", "shop", shopId, { shopName: shop?.name, ownerId: shop?.owner_id });
   return NextResponse.json({ ok: true });
 }

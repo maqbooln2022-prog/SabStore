@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/supabaseAdmin";
+import { requireAdmin, logAdminAction } from "@/lib/supabaseAdmin";
 
 // Reassigns a shop's owner to a different existing member. See
 // supabase/migrations/007_admin_transfer_ownership.sql for why this
@@ -20,5 +20,6 @@ export async function POST(request) {
   });
   if (transferError) return NextResponse.json({ error: transferError.message }, { status: 400 });
 
+  await logAdminAction(admin, caller.id, caller.email, "transfer_ownership", "shop", shopId, { newOwnerUserId });
   return NextResponse.json({ ok: true });
 }

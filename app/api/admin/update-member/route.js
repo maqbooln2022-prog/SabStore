@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/supabaseAdmin";
+import { requireAdmin, logAdminAction } from "@/lib/supabaseAdmin";
 import { MODULES } from "@/lib/modules";
 
 // Admin-scoped version of app/api/staff/update — same shape, but usable
@@ -40,5 +40,6 @@ export async function POST(request) {
     if (pinError) return NextResponse.json({ error: pinError.message }, { status: 500 });
   }
 
+  await logAdminAction(admin, caller.id, caller.email, "update_member", "member", memberId, { name: updates.name, pinReset: !!newPin });
   return NextResponse.json({ ok: true });
 }
