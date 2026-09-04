@@ -419,27 +419,30 @@ function BillingPageInner() {
             <div className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-2 flex items-center gap-1.5">
               <Star size={12} fill="#F2A93B" color="#F2A93B" /> Quick add
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
-              {quickItems.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => setPickerItem(r)}
-                  disabled={r.stock <= 0}
-                  className="flex items-center gap-2 px-3 py-2 rounded-full border shrink-0 transition-colors disabled:opacity-40"
-                  style={{ background: "var(--bg-surface)", borderColor: "#E7E9F3" }}
-                >
-                  <ItemThumb item={r} size={20} />
-                  <span className="ks-mono text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#E7E9F3", color: "#6B7280" }}>
-                    {r.code}
-                  </span>
-                  <span className="font-semibold text-sm whitespace-nowrap">{r.name}</span>
-                  {r.clearancePct ? (
-                    <span className="ks-mono text-[10px] font-bold" style={{ color: "#C13F45" }}>−{r.clearancePct}%&nbsp;{rupee(r.price)}</span>
-                  ) : (
-                    <span className="ks-mono text-[11px] text-[#6B7280]">{rupee(r.price)}</span>
-                  )}
-                </button>
-              ))}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {quickItems.map((r) => {
+                const c = categoryColor(r.category);
+                return (
+                  <button
+                    key={r.id}
+                    onClick={() => setPickerItem(r)}
+                    disabled={r.stock <= 0}
+                    className="text-left p-3 rounded-2xl transition-transform hover:-translate-y-0.5 active:scale-95 disabled:opacity-40 disabled:hover:translate-y-0"
+                    style={{ background: c.bg }}
+                  >
+                    {r.clearancePct && (
+                      <span className="ks-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full mb-1.5 inline-block" style={{ background: "#C13F45", color: "#fff" }}>
+                        −{r.clearancePct}%
+                      </span>
+                    )}
+                    <p className="font-bold text-sm leading-tight" style={{ color: c.text }}>{r.name}</p>
+                    <p className="ks-mono text-xs mt-0.5" style={{ color: c.text, opacity: 0.7 }}>
+                      {r.originalPrice && <span className="line-through mr-1">{rupee(r.originalPrice)}</span>}
+                      {rupee(r.price)}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
