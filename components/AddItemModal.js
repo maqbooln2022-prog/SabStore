@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Loader2, Mic, ScanBarcode } from "lucide-react";
+import { useRef, useState } from "react";
+import { Loader2, Mic, ScanLine, X } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Field from "@/components/ui/Field";
 import { nextCode } from "@/lib/inventoryHelpers";
@@ -24,68 +24,69 @@ export default function AddItemModal({ items, onClose, onAdd }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [listeningField, setListeningField] = useState(null);
-  const [suggestions, setSuggestions] = useState(null); // null = no search run yet, [] = searched but empty
-  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [lookingUp, setLookingUp] = useState(false);
   const recogRef = useRef(null);
-  const abortRef = useRef(null);
   const valid = form.name.trim() && form.price !== "" && form.stock !== "" && /^\d{2}$/.test(form.code);
 
-  // Debounced product lookup from Open Food Facts as user types the name
-  useEffect(() => {
-    const q = form.name.trim();
-    if (q.length < 3) { setSuggestions(null); return; }
-    if (form.barcode) { setSuggestions(null); return; } // already filled
+  // Scan physical barcode → look up product name from Open Food Facts
+  function startScan() {
+    if (!("BarcodeDetector" in window)) {
+      alert("Barcode scanner not supported in this browser. Please type the barcode manually.");
+      return;
+    }
+    setScanning(true);
+    let active = true;
+    const detector = new window.BarcodeDetector({ formats: ["ean_13", "ean_8", "code_128", "code_39", "qr_code"] });
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then((stream) => {
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      video.play();
+      const interval = setInterval(async () => {
+        if (!active) return;
+        try {
+          const [result] = await detector.detect(video);
+          if (result) {
+            clearInterval(interval);
+            stream.getTracks().forEach((t) => t.stop());
+            active = false;
+            setScanning(false);
+            const val = result.rawValue;
+            setForm((prev) => ({ ...prev, barcode: val }));
+            lookupByBarcode(val);
+          }
+        } catch { /* no code found yet */ }
+      }, 400);
 
-    const timer = setTimeout(async () => {
-      if (abortRef.current) abortRef.current.abort();
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-      setSuggestLoading(true);
-      try {
-        const fields = "code,product_name,image_front_small_url";
-        const base = `action=process&json=1&search_simple=1&page_size=20&fields=${fields}`;
-        // Fetch from India DB first, then world DB in parallel
-        const [resIn, resWorld] = await Promise.all([
-          fetch(`https://in.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&${base}`, { signal: ctrl.signal }),
-          fetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&${base}`, { signal: ctrl.signal }),
-        ]);
-        const [jsonIn, jsonWorld] = await Promise.all([resIn.json(), resWorld.json()]);
+      // Auto-stop after 30s
+      setTimeout(() => {
+        if (active) {
+          clearInterval(interval);
+          stream.getTracks().forEach((t) => t.stop());
+          active = false;
+          setScanning(false);
+        }
+      }, 30000);
+    }).catch(() => setScanning(false));
+  }
 
-        // Most specific word = longest word in query (e.g. "sunflower" from "sunflower oil")
-        const qLower = q.toLowerCase();
-        const qWords = qLower.split(/\s+/).filter((w) => w.length > 2);
-        const primary = [...qWords].sort((a, b) => b.length - a.length)[0] || qLower;
-
-        const seen = new Set();
-        const merged = [...(jsonIn.products || []), ...(jsonWorld.products || [])]
-          .filter((p) => {
-            if (!p.code || !p.product_name) return false;
-            if (seen.has(p.code)) return false;
-            seen.add(p.code);
-            // Require the most specific word to appear in the product name
-            return p.product_name.toLowerCase().includes(primary);
-          })
-          .slice(0, 6)
-          .map((p) => ({ barcode: p.code, name: p.product_name, image: p.image_front_small_url || "" }));
-        setSuggestions(merged);
-      } catch (e) {
-        if (e?.name !== "AbortError") setSuggestions([]);
-      } finally {
-        setSuggestLoading(false);
+  // Look up product details by barcode number
+  async function lookupByBarcode(barcode) {
+    setLookingUp(true);
+    try {
+      const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,image_front_small_url,categories_tags`);
+      const json = await res.json();
+      if (json.status === 1 && json.product?.product_name) {
+        const p = json.product;
+        setForm((prev) => ({
+          ...prev,
+          name: prev.name || p.product_name,
+          image_url: prev.image_url || p.image_front_small_url || "",
+        }));
       }
-    }, 600);
-
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.name]);
-
-  function pickSuggestion(s) {
-    setForm((prev) => ({
-      ...prev,
-      barcode: s.barcode,
-      image_url: prev.image_url || s.image,
-    }));
-    setSuggestions(null);
+    } catch { /* ignore */ } finally {
+      setLookingUp(false);
+    }
   }
 
   function startVoice(field) {
@@ -153,7 +154,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
                   style={{ paddingRight: "2.5rem" }}
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Speak or type — barcode auto-fills"
+                  placeholder="Type or speak"
                   autoComplete="off"
                 />
                 <button
@@ -165,62 +166,42 @@ export default function AddItemModal({ items, onClose, onAdd }) {
                 >
                   <Mic size={13} />
                 </button>
-
-                {/* Product suggestions dropdown */}
-                {!form.barcode && (suggestLoading || suggestions !== null) && (
-                  <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-white rounded-2xl shadow-xl border border-[#E7E9F3] overflow-hidden">
-                    {suggestLoading && (
-                      <div className="flex items-center gap-2 px-4 py-3 text-xs text-[#6B7280]">
-                        <Loader2 size={13} className="animate-spin" /> Looking up barcode…
-                      </div>
-                    )}
-                    {!suggestLoading && suggestions !== null && suggestions.length === 0 && (
-                      <div className="px-4 py-3 text-xs text-[#6B7280]">
-                        Not found in product database — enter barcode manually if you have it.
-                      </div>
-                    )}
-                    {(suggestions || []).map((s) => (
-                      <button
-                        key={s.barcode}
-                        type="button"
-                        onClick={() => pickSuggestion(s)}
-                        className="w-full text-left flex items-center gap-3 px-4 py-2.5 hover:bg-[#F8F9FD] border-b border-[#E7E9F3] last:border-0"
-                      >
-                        {s.image ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={s.image} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" onError={(e) => { e.target.style.display = "none"; }} />
-                        ) : (
-                          <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center" style={{ background: "#E7E9F3" }}>
-                            <ScanBarcode size={14} style={{ color: "#6B7280" }} />
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold truncate">{s.name}</p>
-                          <p className="text-xs text-[#6B7280] ks-mono">{s.barcode}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             </Field>
           </div>
         </div>
 
-        {/* Show barcode filled badge */}
+        {/* Barcode — scan the physical product to auto-fill name */}
         <Field label="Barcode">
-          <div className="relative">
-            <input
-              className="ks-input ks-mono"
-              style={{ paddingLeft: form.barcode ? "2rem" : undefined }}
-              value={form.barcode}
-              onChange={(e) => setForm({ ...form, barcode: e.target.value })}
-              placeholder="Auto-filled from product name, or type/paste"
-            />
-            {form.barcode && (
-              <ScanBarcode size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#4F46E5" }} />
-            )}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                className="ks-input ks-mono"
+                value={form.barcode}
+                onChange={(e) => {
+                  setForm({ ...form, barcode: e.target.value });
+                  if (e.target.value.length >= 8) lookupByBarcode(e.target.value);
+                }}
+                placeholder="Scan the product or type barcode"
+              />
+              {lookingUp && (
+                <Loader2 size={13} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin" style={{ color: "#4F46E5" }} />
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={startScan}
+              className={`shrink-0 px-3 h-10 rounded-xl flex items-center gap-1.5 text-xs font-semibold transition-colors ${scanning ? "ks-pulse" : ""}`}
+              style={{ background: scanning ? "#4F46E5" : "#E7E9F3", color: scanning ? "#fff" : "#4F46E5" }}
+              title="Scan barcode with camera"
+            >
+              <ScanLine size={15} />
+              {scanning ? "Scanning…" : "Scan"}
+            </button>
           </div>
+          {lookingUp && (
+            <p className="text-xs text-[#4F46E5] mt-1">Looking up product…</p>
+          )}
         </Field>
 
         <Field label="Hindi / local name (optional — helps voice billing)">
