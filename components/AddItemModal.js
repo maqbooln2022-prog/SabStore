@@ -42,15 +42,32 @@ export default function AddItemModal({ items, onClose, onAdd }) {
       abortRef.current = ctrl;
       setSuggestLoading(true);
       try {
-        // Search specifically in product_name field — avoids matching ingredients
-        const url = `https://world.openfoodfacts.org/cgi/search.pl?tagtype_0=product_name&tag_contains_0=contains&tag_0=${encodeURIComponent(q)}&action=process&json=1&page_size=10&fields=code,product_name,image_front_small_url`;
-        const res = await fetch(url, { signal: ctrl.signal });
-        const json = await res.json();
-        const hits = (json.products || [])
-          .filter((p) => p.code && p.product_name)
+        const fields = "code,product_name,image_front_small_url";
+        const base = `action=process&json=1&search_simple=1&page_size=20&fields=${fields}`;
+        // Fetch from India DB first, then world DB in parallel
+        const [resIn, resWorld] = await Promise.all([
+          fetch(`https://in.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&${base}`, { signal: ctrl.signal }),
+          fetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&${base}`, { signal: ctrl.signal }),
+        ]);
+        const [jsonIn, jsonWorld] = await Promise.all([resIn.json(), resWorld.json()]);
+
+        // Most specific word = longest word in query (e.g. "sunflower" from "sunflower oil")
+        const qLower = q.toLowerCase();
+        const qWords = qLower.split(/\s+/).filter((w) => w.length > 2);
+        const primary = [...qWords].sort((a, b) => b.length - a.length)[0] || qLower;
+
+        const seen = new Set();
+        const merged = [...(jsonIn.products || []), ...(jsonWorld.products || [])]
+          .filter((p) => {
+            if (!p.code || !p.product_name) return false;
+            if (seen.has(p.code)) return false;
+            seen.add(p.code);
+            // Require the most specific word to appear in the product name
+            return p.product_name.toLowerCase().includes(primary);
+          })
           .slice(0, 6)
           .map((p) => ({ barcode: p.code, name: p.product_name, image: p.image_front_small_url || "" }));
-        setSuggestions(hits);
+        setSuggestions(merged);
       } catch (e) {
         if (e?.name !== "AbortError") setSuggestions([]);
       } finally {
