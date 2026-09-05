@@ -103,7 +103,8 @@ export default function ClearanceOfferModal({ items, suggestedIds = [], initialS
               placeholder="Search items..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="ks-input pl-8 text-xs py-2"
+              className="ks-input text-xs"
+              style={{ paddingLeft: "2rem", paddingTop: "0.5rem", paddingBottom: "0.5rem" }}
             />
           </div>
           <div className="max-h-48 overflow-y-auto ks-scroll rounded-xl border border-[#E7E9F3] divide-y divide-[#E7E9F3]">

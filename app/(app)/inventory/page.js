@@ -159,7 +159,8 @@ function InventoryPageInner() {
             placeholder="Search items..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="ks-input pl-9"
+            className="ks-input"
+            style={{ paddingLeft: "2.25rem" }}
           />
         </div>
         <div className="flex gap-2">
