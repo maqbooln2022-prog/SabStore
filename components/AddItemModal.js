@@ -42,11 +42,27 @@ export default function AddItemModal({ items, onClose, onAdd }) {
       abortRef.current = ctrl;
       setSuggestLoading(true);
       try {
-        const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=6&fields=code,product_name,image_front_small_url`;
+        const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=code,product_name,image_front_small_url`;
         const res = await fetch(url, { signal: ctrl.signal });
         const json = await res.json();
+        const qLower = q.toLowerCase();
+        const qWords = qLower.split(/\s+/).filter((w) => w.length > 2);
         const hits = (json.products || [])
-          .filter((p) => p.code && p.product_name)
+          .filter((p) => {
+            if (!p.code || !p.product_name) return false;
+            const pn = p.product_name.toLowerCase();
+            // Product name must contain at least one key word from the query
+            return qWords.some((w) => pn.includes(w));
+          })
+          .sort((a, b) => {
+            // Prefer products whose name starts with or fully contains the query
+            const an = a.product_name.toLowerCase();
+            const bn = b.product_name.toLowerCase();
+            const aFull = an.includes(qLower) ? 0 : 1;
+            const bFull = bn.includes(qLower) ? 0 : 1;
+            return aFull - bFull;
+          })
+          .slice(0, 6)
           .map((p) => ({ barcode: p.code, name: p.product_name, image: p.image_front_small_url || "" }));
         setSuggestions(hits);
       } catch {
