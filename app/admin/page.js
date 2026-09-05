@@ -23,6 +23,8 @@ import {
   IndianRupee,
   Wallet,
   Clock,
+  KeyRound,
+  CheckCircle2,
 } from "lucide-react";
 import {
   PieChart,
@@ -202,6 +204,10 @@ function AdminPageInner() {
     await load();
   }
 
+  async function resetUserPassword(userId, newPassword) {
+    await callApi(supabase, "/api/admin/reset-password", { userId, newPassword });
+  }
+
   async function transferOwnership(shop, member) {
     setBusyId(member.id);
     try {
@@ -300,6 +306,7 @@ function AdminPageInner() {
   const TABS = [
     { key: "overview", label: "Overview", icon: LayoutDashboard },
     { key: "shops", label: "Owners & Shops", icon: Building2 },
+    { key: "passwords", label: "Password resets", icon: KeyRound },
     { key: "audit", label: "Audit log", icon: ClipboardList },
   ];
 
@@ -389,6 +396,10 @@ function AdminPageInner() {
                 setEditMember={setEditMember}
                 setConfirmTransfer={setConfirmTransfer}
               />
+            )}
+
+            {data && activeTab === "passwords" && (
+              <PasswordResetsTab owners={data.owners} onReset={resetUserPassword} />
             )}
 
             {activeTab === "audit" && (
@@ -875,6 +886,7 @@ const ACTION_META = {
   delete_shop:        { label: "Deleted shop",         color: "#F2A93B",     bg: "rgba(242,169,59,0.14)" },
   update_member:      { label: "Updated member",       color: "#7EB3F9",     bg: "rgba(91,124,250,0.14)" },
   transfer_ownership: { label: "Transferred ownership",color: "#A78BFA",     bg: "rgba(167,139,250,0.14)" },
+  reset_password:     { label: "Reset password",       color: "#7FE0B8",     bg: SUCCESS_BG },
 };
 
 function AuditTab({ log, loading, onRefresh }) {
@@ -916,6 +928,7 @@ function AuditTab({ log, loading, onRefresh }) {
               row.meta?.ownerEmail ||
               row.meta?.shopName ||
               row.meta?.name ||
+              row.meta?.targetEmail ||
               row.target_id?.slice(0, 8) + "…";
             return (
               <div
@@ -972,6 +985,147 @@ function DeleteShopModal({ shop, busy, onClose, onConfirm }) {
             Delete permanently
           </button>
         </div>
+      </div>
+    </Modal>
+  );
+}
+
+function PasswordResetsTab({ owners, onReset }) {
+  const [resetting, setResetting] = useState(null); // { userId, email, name }
+
+  // Flatten all users: owners + their staff members
+  const users = [];
+  owners.forEach((owner) => {
+    users.push({ userId: owner.id, email: owner.email, name: owner.email, role: "owner" });
+    owner.shops.forEach((shop) => {
+      shop.members
+        .filter((m) => m.role === "staff" && m.user_id)
+        .forEach((m) => {
+          if (!users.find((u) => u.userId === m.user_id)) {
+            users.push({ userId: m.user_id, email: m.email, name: m.name, role: "staff" });
+          }
+        });
+    });
+  });
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="font-bold text-lg mb-1">Password resets</h2>
+        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+          Set a new password for any owner or staff account directly. The user will be able to sign in with the new password immediately.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        {users.map((u) => (
+          <div
+            key={u.userId}
+            className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm"
+            style={{ background: "var(--bg-surface)" }}
+          >
+            <div className="min-w-0">
+              <div className="font-semibold truncate">{u.email}</div>
+              {u.name !== u.email && (
+                <div className="text-xs truncate" style={{ color: "var(--text-secondary)" }}>{u.name}</div>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span
+                className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={
+                  u.role === "owner"
+                    ? { background: "var(--accent-soft-bg)", color: "var(--accent-soft-text)" }
+                    : { background: "var(--border)", color: "var(--text-secondary)" }
+                }
+              >
+                {u.role.toUpperCase()}
+              </span>
+              <button
+                onClick={() => setResetting(u)}
+                className="text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5"
+                style={{ background: "rgba(91,124,250,0.14)", color: "#7EB3F9" }}
+              >
+                <KeyRound size={12} /> Reset password
+              </button>
+            </div>
+          </div>
+        ))}
+        {users.length === 0 && (
+          <p className="text-sm text-center py-10" style={{ color: "var(--text-secondary)" }}>No users yet.</p>
+        )}
+      </div>
+
+      {resetting && (
+        <ResetPasswordModal
+          user={resetting}
+          onClose={() => setResetting(null)}
+          onReset={async (newPassword) => { await onReset(resetting.userId, newPassword); setResetting(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ResetPasswordModal({ user, onClose, onReset }) {
+  const [newPassword, setNewPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState("");
+  const valid = newPassword.length >= 6;
+
+  async function handleReset() {
+    setSaving(true);
+    setError("");
+    try {
+      await onReset(newPassword);
+      setDone(true);
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal title={`Reset password — ${user.email}`} onClose={onClose}>
+      <div className="space-y-3.5">
+        {done ? (
+          <>
+            <div className="flex items-center gap-2 text-sm rounded-lg px-3 py-2.5" style={{ background: SUCCESS_BG, color: SUCCESS_TEXT }}>
+              <CheckCircle2 size={16} className="shrink-0" />
+              <span>Password updated. The user can now sign in with the new password.</span>
+            </div>
+            <button onClick={onClose} className="ks-btn-primary w-full">Done</button>
+          </>
+        ) : (
+          <>
+            <Field label="New password (min. 6 characters)">
+              <input
+                className="ks-input"
+                type="text"
+                autoFocus
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+              />
+            </Field>
+            {error && (
+              <p className="text-sm rounded-lg px-3 py-2" style={{ background: DANGER_BG, color: DANGER_TEXT }}>{error}</p>
+            )}
+            <div className="flex gap-2">
+              <button onClick={onClose} className="ks-btn-outline flex-1">Cancel</button>
+              <button
+                onClick={handleReset}
+                disabled={!valid || saving}
+                className="flex-1 rounded-full text-white text-sm font-semibold py-2.5 disabled:opacity-40 flex items-center justify-center gap-2"
+                style={{ background: "#5B7CFA" }}
+              >
+                {saving && <Loader2 size={16} className="animate-spin" />}
+                Set password
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </Modal>
   );

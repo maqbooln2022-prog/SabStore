@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabaseClient";
 export default function LoginPage() {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
-  const [mode, setMode] = useState("signin"); // "signin" | "signup" | "staff"
+  const [mode, setMode] = useState("signin"); // "signin" | "signup" | "staff" | "forgot"
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,6 +41,16 @@ export default function LoginPage() {
     setError("");
     setNotice("");
     setLoading(true);
+
+    if (mode === "forgot") {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) setError(error.message);
+      else setNotice("Password reset link sent! Check your email and follow the link to set a new password.");
+      setLoading(false);
+      return;
+    }
 
     if (mode === "signin") {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -94,7 +104,12 @@ export default function LoginPage() {
         </div>
 
         <div className="ks-card p-6">
-          {mode !== "staff" ? (
+          {mode === "forgot" ? (
+            <div className="mb-5">
+              <h2 className="ks-display font-bold text-center">Forgot password?</h2>
+              <p className="text-xs text-muted text-center mt-1">Enter your email and we&apos;ll send you a reset link.</p>
+            </div>
+          ) : mode !== "staff" ? (
             <div className="flex rounded-full bg-[#F1F2F8] p-1 mb-5">
               <button
                 type="button"
@@ -138,7 +153,21 @@ export default function LoginPage() {
               </div>
             )}
 
-            {mode !== "staff" ? (
+            {mode === "forgot" ? (
+              <div>
+                <label className="text-xs font-medium text-muted mb-1 block">Email</label>
+                <input
+                  type="email"
+                  required
+                  autoFocus
+                  autoComplete="email"
+                  className="ks-input"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="owner@shop.com"
+                />
+              </div>
+            ) : mode !== "staff" ? (
               <>
                 <div>
                   <label className="text-xs font-medium text-muted mb-1 block">Email</label>
@@ -153,7 +182,14 @@ export default function LoginPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted mb-1 block">Password</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-medium text-muted">Password</label>
+                    {mode === "signin" && (
+                      <button type="button" onClick={() => switchMode("forgot")} className="text-xs font-semibold text-brand">
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="password"
                     required
@@ -207,18 +243,26 @@ export default function LoginPage() {
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="ks-btn-primary w-full flex items-center justify-center gap-2 mt-2"
-            >
-              {loading && <Loader2 size={16} className="animate-spin" />}
-              {mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Sign in"}
-            </button>
+            {!notice && (
+              <button
+                type="submit"
+                disabled={loading}
+                className="ks-btn-primary w-full flex items-center justify-center gap-2 mt-2"
+              >
+                {loading && <Loader2 size={16} className="animate-spin" />}
+                {mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : mode === "forgot" ? "Send reset link" : "Sign in"}
+              </button>
+            )}
           </form>
         </div>
 
-        {mode !== "staff" ? (
+        {mode === "forgot" ? (
+          <p className="text-center text-xs text-muted mt-4">
+            <button type="button" onClick={() => switchMode("signin")} className="font-semibold text-brand">
+              Back to sign in
+            </button>
+          </p>
+        ) : mode !== "staff" ? (
           <div className="text-center text-xs text-muted mt-4 space-y-1.5">
             <p>
               {mode === "signin" ? "New here?" : "Already have an account?"}{" "}
