@@ -42,21 +42,15 @@ export default function AddItemModal({ items, onClose, onAdd }) {
       abortRef.current = ctrl;
       setSuggestLoading(true);
       try {
-        const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=24&fields=code,product_name,image_front_small_url`;
+        // Search specifically in product_name field — avoids matching ingredients
+        const url = `https://world.openfoodfacts.org/cgi/search.pl?tagtype_0=product_name&tag_contains_0=contains&tag_0=${encodeURIComponent(q)}&action=process&json=1&page_size=10&fields=code,product_name,image_front_small_url`;
         const res = await fetch(url, { signal: ctrl.signal });
         const json = await res.json();
-        const qLower = q.toLowerCase();
-        const qWords = qLower.split(/\s+/).filter((w) => w.length > 2);
-        const all = (json.products || []).filter((p) => p.code && p.product_name);
-        // Score each result by how many query words appear in the product name
-        const scored = all.map((p) => {
-          const pn = p.product_name.toLowerCase();
-          const score = qWords.filter((w) => pn.includes(w)).length;
-          return { barcode: p.code, name: p.product_name, image: p.image_front_small_url || "", score };
-        }).sort((a, b) => b.score - a.score);
-        // Show products that matched at least one word; if none matched, show top 3 anyway
-        const withMatch = scored.filter((s) => s.score > 0).slice(0, 6);
-        setSuggestions(withMatch.length > 0 ? withMatch : scored.slice(0, 3));
+        const hits = (json.products || [])
+          .filter((p) => p.code && p.product_name)
+          .slice(0, 6)
+          .map((p) => ({ barcode: p.code, name: p.product_name, image: p.image_front_small_url || "" }));
+        setSuggestions(hits);
       } catch (e) {
         if (e?.name !== "AbortError") setSuggestions([]);
       } finally {
