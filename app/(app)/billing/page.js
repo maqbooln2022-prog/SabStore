@@ -435,7 +435,7 @@ function BillingPageInner() {
                         −{r.clearancePct}%
                       </span>
                     )}
-                    <p className="font-bold text-sm leading-tight" style={{ color: c.text }}>{r.name}</p>
+                    <p className="font-bold text-sm leading-tight line-clamp-2" style={{ color: c.text }}>{r.name}</p>
                     <p className="ks-mono text-xs mt-0.5" style={{ color: c.text, opacity: 0.7 }}>
                       {r.originalPrice && <span className="line-through mr-1">{rupee(r.originalPrice)}</span>}
                       {rupee(r.price)}
@@ -482,12 +482,12 @@ function BillingPageInner() {
                   onClick={() => setPickerItem(r)}
                   className="w-full text-left px-4 py-2.5 text-sm hover:bg-[#F8F9FD] flex items-center justify-between border-b border-[#E7E9F3] last:border-0"
                 >
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-2 min-w-0 flex-1">
                     <ItemThumb item={r} size={24} />
-                    <span className="ks-mono text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#E7E9F3", color: "#6B7280" }}>
+                    <span className="ks-mono text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ background: "#E7E9F3", color: "#6B7280" }}>
                       {r.code}
                     </span>
-                    <span className="font-medium">{r.name}</span>
+                    <span className="font-medium truncate">{r.name}</span>
                     {r.clearancePct && (
                       <span className="ks-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#C13F45", color: "#fff" }}>
                         −{r.clearancePct}%

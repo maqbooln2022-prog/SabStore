@@ -202,10 +202,10 @@ function InventoryPageInner() {
                       {i.code}
                     </span>
                   </td>
-                  <td className="px-5 py-3 font-semibold">
-                    <div className="flex items-center gap-2.5">
-                      <ItemThumb item={i} size={30} />
-                      {i.name}
+                  <td className="px-5 py-3 font-semibold max-w-[220px]">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <ItemThumb item={i} size={30} className="shrink-0" />
+                      <span className="truncate">{i.name}</span>
                     </div>
                   </td>
                   <td className="px-5 py-3">
