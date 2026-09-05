@@ -24,7 +24,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [listeningField, setListeningField] = useState(null);
-  const [suggestions, setSuggestions] = useState([]);
+  const [suggestions, setSuggestions] = useState(null); // null = no search run yet, [] = searched but empty
   const [suggestLoading, setSuggestLoading] = useState(false);
   const recogRef = useRef(null);
   const abortRef = useRef(null);
@@ -33,8 +33,8 @@ export default function AddItemModal({ items, onClose, onAdd }) {
   // Debounced product lookup from Open Food Facts as user types the name
   useEffect(() => {
     const q = form.name.trim();
-    if (q.length < 3) { setSuggestions([]); return; }
-    if (form.barcode) { setSuggestions([]); return; } // already filled
+    if (q.length < 3) { setSuggestions(null); return; }
+    if (form.barcode) { setSuggestions(null); return; } // already filled
 
     const timer = setTimeout(async () => {
       if (abortRef.current) abortRef.current.abort();
@@ -42,28 +42,24 @@ export default function AddItemModal({ items, onClose, onAdd }) {
       abortRef.current = ctrl;
       setSuggestLoading(true);
       try {
-        const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=code,product_name,image_front_small_url`;
+        const url = `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(q)}&fields=code,product_name,image_front_small_url&page_size=24&sort_by=unique_scans_n`;
         const res = await fetch(url, { signal: ctrl.signal });
         const json = await res.json();
         const qLower = q.toLowerCase();
         const qWords = qLower.split(/\s+/).filter((w) => w.length > 2);
-        const hits = (json.products || [])
-          .filter((p) => {
-            if (!p.code || !p.product_name) return false;
+        const scored = (json.products || [])
+          .filter((p) => p.code && p.product_name)
+          .map((p) => {
             const pn = p.product_name.toLowerCase();
-            // Product name must contain at least one key word from the query
-            return qWords.some((w) => pn.includes(w));
+            const matchCount = qWords.filter((w) => pn.includes(w)).length;
+            return { barcode: p.code, name: p.product_name, image: p.image_front_small_url || "", matchCount };
           })
-          .sort((a, b) => {
-            // Prefer products whose name starts with or fully contains the query
-            const an = a.product_name.toLowerCase();
-            const bn = b.product_name.toLowerCase();
-            const aFull = an.includes(qLower) ? 0 : 1;
-            const bFull = bn.includes(qLower) ? 0 : 1;
-            return aFull - bFull;
-          })
-          .slice(0, 6)
-          .map((p) => ({ barcode: p.code, name: p.product_name, image: p.image_front_small_url || "" }));
+          .sort((a, b) => b.matchCount - a.matchCount)
+          .slice(0, 6);
+        // Show top matches; if none have any word match, show top 3 anyway so user isn't left blank
+        const hits = scored.filter((s) => s.matchCount > 0).length > 0
+          ? scored.filter((s) => s.matchCount > 0)
+          : scored.slice(0, 3);
         setSuggestions(hits);
       } catch {
         // aborted or network error — silently ignore
@@ -82,7 +78,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
       barcode: s.barcode,
       image_url: prev.image_url || s.image,
     }));
-    setSuggestions([]);
+    setSuggestions(null);
   }
 
   function startVoice(field) {
@@ -149,7 +145,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
                   className="ks-input"
                   style={{ paddingRight: "2.5rem" }}
                   value={form.name}
-                  onChange={(e) => { setForm({ ...form, name: e.target.value }); setSuggestions([]); }}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="Speak or type — barcode auto-fills"
                   autoComplete="off"
                 />
@@ -164,14 +160,19 @@ export default function AddItemModal({ items, onClose, onAdd }) {
                 </button>
 
                 {/* Product suggestions dropdown */}
-                {(suggestLoading || suggestions.length > 0) && (
+                {!form.barcode && (suggestLoading || suggestions !== null) && (
                   <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-white rounded-2xl shadow-xl border border-[#E7E9F3] overflow-hidden">
                     {suggestLoading && (
                       <div className="flex items-center gap-2 px-4 py-3 text-xs text-[#6B7280]">
                         <Loader2 size={13} className="animate-spin" /> Looking up barcode…
                       </div>
                     )}
-                    {suggestions.map((s) => (
+                    {!suggestLoading && suggestions !== null && suggestions.length === 0 && (
+                      <div className="px-4 py-3 text-xs text-[#6B7280]">
+                        Not found in product database — enter barcode manually if you have it.
+                      </div>
+                    )}
+                    {(suggestions || []).map((s) => (
                       <button
                         key={s.barcode}
                         type="button"
