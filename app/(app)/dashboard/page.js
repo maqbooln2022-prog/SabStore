@@ -22,6 +22,8 @@ import CustomerDetailModal from "@/components/CustomerDetailModal";
 import { rupee, greeting, displayName } from "@/lib/format";
 import { customerBalance, topCustomers } from "@/lib/dashboardHelpers";
 import { fetchShopItems } from "@/lib/products";
+import MiniBarChart from "@/components/MiniBarChart";
+import { categoryColor } from "@/components/CategoryChip";
 
 export default function DashboardPage() {
   const { supabase, activeShopId, activeShop, user, isOwner } = useShop();
@@ -92,6 +94,37 @@ export default function DashboardPage() {
   }, [credits]);
 
   const bestCustomers = useMemo(() => topCustomers(bills, 5), [bills]);
+
+  const last7Days = useMemo(() => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toDateString();
+      const total = bills.filter((b) => new Date(b.date).toDateString() === key).reduce((s, b) => s + b.total, 0);
+      days.push({
+        label: d.toLocaleDateString("en-IN", { weekday: "short" }),
+        sublabel: d.toLocaleDateString("en-IN", { day: "numeric" }),
+        value: total,
+        isHighlight: i === 0,
+      });
+    }
+    return days;
+  }, [bills]);
+
+  const categorySales = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+    const map = new Map();
+    bills.filter((b) => new Date(b.date) >= cutoff).forEach((bill) => {
+      (bill.items || []).forEach((line) => {
+        const inv = items.find((i) => i.id === line.shop_product_id);
+        const cat = inv?.category || "Other";
+        map.set(cat, (map.get(cat) || 0) + line.price * line.qty);
+      });
+    });
+    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+  }, [bills, items]);
 
   const expiringWithNames = useMemo(
     () =>
@@ -206,6 +239,48 @@ export default function DashboardPage() {
           value={rupee(outstandingCredit)}
           onClick={() => router.push("/credit")}
         />
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4 mt-5">
+        <div className="ks-card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="ks-display font-bold">Sales this week</h2>
+            <span className="ks-mono text-xs text-[#6B7280]">last 7 days</span>
+          </div>
+          <MiniBarChart
+            data={last7Days}
+            color="#4F46E5"
+            formatValue={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
+          />
+        </div>
+
+        <div className="ks-card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="ks-display font-bold">Top categories</h2>
+            <span className="ks-mono text-xs text-[#6B7280]">last 30 days</span>
+          </div>
+          {categorySales.length === 0 ? (
+            <p className="text-sm text-[#6B7280]">No sales yet — start billing to see category breakdown.</p>
+          ) : (
+            <div className="space-y-2.5">
+              {categorySales.map(([cat, total]) => {
+                const c = categoryColor(cat);
+                const pct = Math.round((total / categorySales[0][1]) * 100);
+                return (
+                  <div key={cat}>
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="font-semibold" style={{ color: c.text }}>{cat}</span>
+                      <span className="ks-mono text-xs text-[#6B7280]">{rupee(total)}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-[#E7E9F3] overflow-hidden">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: c.text }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-4 mt-5">

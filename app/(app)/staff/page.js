@@ -97,81 +97,81 @@ export default function StaffPage() {
         </button>
       </div>
 
-      <div className="ks-card overflow-hidden overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left ks-mono text-[11px] uppercase tracking-wide text-[#6B7280] border-b border-[#E7E9F3]">
-              <th className="px-5 py-3 font-medium">Name</th>
-              <th className="px-5 py-3 font-medium">Role</th>
-              <th className="px-5 py-3 font-medium">Staff code</th>
-              <th className="px-5 py-3 font-medium">Access</th>
-              <th className="px-5 py-3 font-medium"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {owner && (
-              <tr className="border-b border-[#E7E9F3]">
-                <td className="px-5 py-3 font-semibold">{owner.name}</td>
-                <td className="px-5 py-3">
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#EEF0FE", color: "#4F46E5" }}>
-                    OWNER
-                  </span>
-                </td>
-                <td className="px-5 py-3 ks-mono text-[#6B7280]">—</td>
-                <td className="px-5 py-3 text-[#6B7280]">Everything</td>
-                <td className="px-5 py-3"></td>
-              </tr>
-            )}
-            {staff.map((m) => (
-              <tr key={m.id} className="border-b border-[#E7E9F3] last:border-0 hover:bg-[#F8F9FD]">
-                <td className="px-5 py-3 font-semibold">{m.name}</td>
-                <td className="px-5 py-3">
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#E7E9F3", color: "#6B7280" }}>
-                    STAFF
-                  </span>
-                </td>
-                <td className="px-5 py-3 ks-mono font-semibold">{m.staff_code}</td>
-                <td className="px-5 py-3">
-                  <div className="flex flex-wrap gap-1">
-                    {MODULES.filter((mod) => m.permissions?.[mod.key]).map((mod) => (
-                      <span key={mod.key} className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "#E7E9F3", color: "#6B7280" }}>
-                        {mod.label}
-                      </span>
-                    ))}
-                    {MODULES.every((mod) => !m.permissions?.[mod.key]) && <span className="text-xs text-[#6B7280]">None yet</span>}
+      <div className="space-y-3">
+        {owner && (
+          <div className="ks-card p-4 flex items-center gap-4">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-sm font-bold text-white" style={{ background: "#4F46E5" }}>
+              {owner.name?.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm">{owner.name}</p>
+              <p className="text-xs text-[#6B7280] mt-0.5">Full access to everything</p>
+            </div>
+            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0" style={{ background: "#EEF0FE", color: "#4F46E5" }}>
+              OWNER
+            </span>
+          </div>
+        )}
+
+        {staff.map((m) => {
+          const allowed = MODULES.filter((mod) => m.permissions?.[mod.key]);
+          const initials = m.name?.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+          return (
+            <div key={m.id} className="ks-card p-4">
+              <div className="flex items-start gap-4">
+                <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-sm font-bold text-white" style={{ background: "#6B7280" }}>
+                  {initials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <p className="font-bold text-sm">{m.name}</p>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#E7E9F3", color: "#6B7280" }}>
+                      STAFF
+                    </span>
+                    <span className="ks-mono text-xs font-bold px-2 py-0.5 rounded-md" style={{ background: "#F0F0F0", color: "#444" }}>
+                      Code: {m.staff_code}
+                    </span>
                   </div>
-                </td>
-                <td className="px-5 py-3">
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => setEditing(m)}
-                      className="w-8 h-8 rounded-full flex items-center justify-center"
-                      style={{ background: "#E7E9F3", color: "#000000" }}
-                      title="Edit"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => setRemoving(m)}
-                      className="w-8 h-8 rounded-full flex items-center justify-center"
-                      style={{ background: "#FDEAEA", color: "#C13F45" }}
-                      title="Remove"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {allowed.length === 0 ? (
+                      <span className="text-xs text-[#B0A996]">No access granted yet</span>
+                    ) : (
+                      allowed.map((mod) => (
+                        <span key={mod.key} className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#EEF0FE", color: "#4F46E5" }}>
+                          {mod.label}
+                        </span>
+                      ))
+                    )}
                   </div>
-                </td>
-              </tr>
-            ))}
-            {staff.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-5 py-10 text-center text-[#6B7280] text-sm">
-                  No staff added yet — everyone signing in is you.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  <button
+                    onClick={() => setEditing(m)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center"
+                    style={{ background: "#E7E9F3", color: "#000000" }}
+                    title="Edit"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => setRemoving(m)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center"
+                    style={{ background: "#FDEAEA", color: "#C13F45" }}
+                    title="Remove"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {staff.length === 0 && (
+          <div className="ks-card p-10 text-center text-[#6B7280] text-sm">
+            No staff added yet — tap &quot;Add staff member&quot; to get started.
+          </div>
+        )}
       </div>
 
       {showAdd && <AddStaffModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />}

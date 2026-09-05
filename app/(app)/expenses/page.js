@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
-import CategoryChip from "@/components/CategoryChip";
+import CategoryChip, { categoryColor } from "@/components/CategoryChip";
 import AddExpenseModal from "@/components/AddExpenseModal";
 import FixedExpenseModal from "@/components/FixedExpenseModal";
+import MiniBarChart from "@/components/MiniBarChart";
 import { rupee } from "@/lib/format";
 import ModuleGuard from "@/components/ModuleGuard";
 
@@ -55,6 +56,28 @@ function ExpensesPageInner() {
   }, [expenses]);
 
   const fixedTotal = useMemo(() => fixedExpenses.reduce((s, e) => s + Number(e.amount), 0), [fixedExpenses]);
+
+  const monthCategoryBreakdown = useMemo(() => {
+    const monthKey = new Date().toISOString().slice(0, 7);
+    const map = new Map();
+    expenses.filter((e) => e.date.slice(0, 7) === monthKey).forEach((e) => {
+      map.set(e.category, (map.get(e.category) || 0) + e.amount);
+    });
+    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  }, [expenses]);
+
+  const last6Months = useMemo(() => {
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - i);
+      const key = d.toISOString().slice(0, 7);
+      const total = expenses.filter((e) => e.date.slice(0, 7) === key).reduce((s, e) => s + e.amount, 0);
+      months.push({ label: d.toLocaleDateString("en-IN", { month: "short" }), value: total, isHighlight: i === 0 });
+    }
+    return months;
+  }, [expenses]);
 
   async function addExpense(entry) {
     const { data, error } = await supabase
@@ -136,6 +159,43 @@ function ExpensesPageInner() {
               <div className="ks-display text-2xl font-bold mt-0.5">{rupee(monthTotal)}</div>
             </div>
           </div>
+
+          {(monthCategoryBreakdown.length > 0 || last6Months.some((m) => m.value > 0)) && (
+            <div className="grid md:grid-cols-2 gap-3.5 mb-4">
+              {last6Months.some((m) => m.value > 0) && (
+                <div className="ks-card p-4">
+                  <p className="text-[11px] uppercase tracking-wide text-[#6B7280] font-semibold mb-3">Monthly trend</p>
+                  <MiniBarChart
+                    data={last6Months}
+                    color="#C13F45"
+                    formatValue={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
+                  />
+                </div>
+              )}
+              {monthCategoryBreakdown.length > 0 && (
+                <div className="ks-card p-4">
+                  <p className="text-[11px] uppercase tracking-wide text-[#6B7280] font-semibold mb-3">This month by category</p>
+                  <div className="space-y-2.5">
+                    {monthCategoryBreakdown.map(([cat, total]) => {
+                      const c = categoryColor(cat);
+                      const pct = Math.round((total / monthCategoryBreakdown[0][1]) * 100);
+                      return (
+                        <div key={cat}>
+                          <div className="flex items-center justify-between text-sm mb-1">
+                            <span className="font-semibold" style={{ color: c.text }}>{cat}</span>
+                            <span className="ks-mono text-xs text-[#6B7280]">{rupee(total)}</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-[#E7E9F3] overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: c.text }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-end mb-3">
             <button onClick={() => setShowAdd(true)} className="ks-btn-primary flex items-center gap-1.5">
