@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Loader2, Mic } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Mic, ScanBarcode } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Field from "@/components/ui/Field";
 import { nextCode } from "@/lib/inventoryHelpers";
@@ -23,8 +23,51 @@ export default function AddItemModal({ items, onClose, onAdd }) {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [listeningField, setListeningField] = useState(null); // 'name' | 'hindi_name'
+  const [listeningField, setListeningField] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestLoading, setSuggestLoading] = useState(false);
   const recogRef = useRef(null);
+  const abortRef = useRef(null);
+  const valid = form.name.trim() && form.price !== "" && form.stock !== "" && /^\d{2}$/.test(form.code);
+
+  // Debounced product lookup from Open Food Facts as user types the name
+  useEffect(() => {
+    const q = form.name.trim();
+    if (q.length < 3) { setSuggestions([]); return; }
+    if (form.barcode) { setSuggestions([]); return; } // already filled
+
+    const timer = setTimeout(async () => {
+      if (abortRef.current) abortRef.current.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      setSuggestLoading(true);
+      try {
+        const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=6&fields=code,product_name,image_front_small_url`;
+        const res = await fetch(url, { signal: ctrl.signal });
+        const json = await res.json();
+        const hits = (json.products || [])
+          .filter((p) => p.code && p.product_name)
+          .map((p) => ({ barcode: p.code, name: p.product_name, image: p.image_front_small_url || "" }));
+        setSuggestions(hits);
+      } catch {
+        // aborted or network error — silently ignore
+      } finally {
+        setSuggestLoading(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.name]);
+
+  function pickSuggestion(s) {
+    setForm((prev) => ({
+      ...prev,
+      barcode: s.barcode,
+      image_url: prev.image_url || s.image,
+    }));
+    setSuggestions([]);
+  }
 
   function startVoice(field) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -46,7 +89,6 @@ export default function AddItemModal({ items, onClose, onAdd }) {
     r.onend = () => { setListeningField(null); recogRef.current = null; };
     r.start();
   }
-  const valid = form.name.trim() && form.price !== "" && form.stock !== "" && /^\d{2}$/.test(form.code);
 
   async function handleAdd() {
     setSaving(true);
@@ -91,8 +133,9 @@ export default function AddItemModal({ items, onClose, onAdd }) {
                   className="ks-input"
                   style={{ paddingRight: "2.5rem" }}
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Speak or type"
+                  onChange={(e) => { setForm({ ...form, name: e.target.value }); setSuggestions([]); }}
+                  placeholder="Speak or type — barcode auto-fills"
+                  autoComplete="off"
                 />
                 <button
                   type="button"
@@ -103,18 +146,59 @@ export default function AddItemModal({ items, onClose, onAdd }) {
                 >
                   <Mic size={13} />
                 </button>
+
+                {/* Product suggestions dropdown */}
+                {(suggestLoading || suggestions.length > 0) && (
+                  <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-white rounded-2xl shadow-xl border border-[#E7E9F3] overflow-hidden">
+                    {suggestLoading && (
+                      <div className="flex items-center gap-2 px-4 py-3 text-xs text-[#6B7280]">
+                        <Loader2 size={13} className="animate-spin" /> Looking up barcode…
+                      </div>
+                    )}
+                    {suggestions.map((s) => (
+                      <button
+                        key={s.barcode}
+                        type="button"
+                        onClick={() => pickSuggestion(s)}
+                        className="w-full text-left flex items-center gap-3 px-4 py-2.5 hover:bg-[#F8F9FD] border-b border-[#E7E9F3] last:border-0"
+                      >
+                        {s.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={s.image} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" onError={(e) => { e.target.style.display = "none"; }} />
+                        ) : (
+                          <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center" style={{ background: "#E7E9F3" }}>
+                            <ScanBarcode size={14} style={{ color: "#6B7280" }} />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold truncate">{s.name}</p>
+                          <p className="text-xs text-[#6B7280] ks-mono">{s.barcode}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </Field>
           </div>
         </div>
-        <Field label="Barcode (optional)">
-          <input
-            className="ks-input ks-mono"
-            value={form.barcode}
-            onChange={(e) => setForm({ ...form, barcode: e.target.value })}
-            placeholder="Type or paste"
-          />
+
+        {/* Show barcode filled badge */}
+        <Field label="Barcode">
+          <div className="relative">
+            <input
+              className="ks-input ks-mono"
+              style={{ paddingLeft: form.barcode ? "2rem" : undefined }}
+              value={form.barcode}
+              onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+              placeholder="Auto-filled from product name, or type/paste"
+            />
+            {form.barcode && (
+              <ScanBarcode size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#4F46E5" }} />
+            )}
+          </div>
         </Field>
+
         <Field label="Hindi / local name (optional — helps voice billing)">
           <div className="relative">
             <input
@@ -135,6 +219,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
             </button>
           </div>
         </Field>
+
         <Field label="Photo URL (optional)">
           <div className="flex items-center gap-2.5">
             {form.image_url && (
@@ -143,9 +228,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
                 src={form.image_url}
                 alt=""
                 className="w-10 h-10 rounded-lg object-cover shrink-0"
-                onError={(e) => {
-                  e.target.style.display = "none";
-                }}
+                onError={(e) => { e.target.style.display = "none"; }}
               />
             )}
             <input
@@ -156,6 +239,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
             />
           </div>
         </Field>
+
         <Field label="Category">
           <input
             className="ks-input"
@@ -164,6 +248,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
             placeholder="e.g. Grocery"
           />
         </Field>
+
         <div className="grid grid-cols-2 gap-3">
           <Field label="Unit">
             <select className="ks-input" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}>
@@ -176,6 +261,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
             <input type="number" className="ks-input" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
           </Field>
         </div>
+
         <div className="grid grid-cols-2 gap-3">
           <Field label="Purchase price (₹, optional)">
             <input
@@ -189,13 +275,12 @@ export default function AddItemModal({ items, onClose, onAdd }) {
             <select className="ks-input" value={form.gst} onChange={(e) => setForm({ ...form, gst: e.target.value })}>
               <option value="">None</option>
               {[0, 5, 12, 18, 28].map((r) => (
-                <option key={r} value={r}>
-                  {r}%
-                </option>
+                <option key={r} value={r}>{r}%</option>
               ))}
             </select>
           </Field>
         </div>
+
         <div className="grid grid-cols-2 gap-3">
           <Field label="Opening stock">
             <input type="number" className="ks-input" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
@@ -204,6 +289,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
             <input type="number" className="ks-input" value={form.low_at} onChange={(e) => setForm({ ...form, low_at: e.target.value })} />
           </Field>
         </div>
+
         {error && (
           <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
         )}
