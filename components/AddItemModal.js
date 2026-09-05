@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { Loader2, Mic } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Field from "@/components/ui/Field";
 import { nextCode } from "@/lib/inventoryHelpers";
@@ -23,6 +23,29 @@ export default function AddItemModal({ items, onClose, onAdd }) {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [listeningField, setListeningField] = useState(null); // 'name' | 'hindi_name'
+  const recogRef = useRef(null);
+
+  function startVoice(field) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    if (recogRef.current) { recogRef.current.abort(); recogRef.current = null; }
+    if (listeningField === field) { setListeningField(null); return; }
+    const r = new SR();
+    r.lang = field === "hindi_name" ? "hi-IN" : "en-IN";
+    r.interimResults = false;
+    r.maxAlternatives = 1;
+    recogRef.current = r;
+    setListeningField(field);
+    r.onresult = (e) => {
+      setForm((prev) => ({ ...prev, [field]: e.results[0][0].transcript.trim() }));
+      setListeningField(null);
+      recogRef.current = null;
+    };
+    r.onerror = () => { setListeningField(null); recogRef.current = null; };
+    r.onend = () => { setListeningField(null); recogRef.current = null; };
+    r.start();
+  }
   const valid = form.name.trim() && form.price !== "" && form.stock !== "" && /^\d{2}$/.test(form.code);
 
   async function handleAdd() {
@@ -63,7 +86,24 @@ export default function AddItemModal({ items, onClose, onAdd }) {
           </Field>
           <div className="col-span-2">
             <Field label="Item name">
-              <input className="ks-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <div className="relative">
+                <input
+                  className="ks-input"
+                  style={{ paddingRight: "2.5rem" }}
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Speak or type"
+                />
+                <button
+                  type="button"
+                  onClick={() => startVoice("name")}
+                  className={`absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${listeningField === "name" ? "ks-pulse" : ""}`}
+                  style={{ background: listeningField === "name" ? "#C13F45" : "#E7E9F3", color: listeningField === "name" ? "#fff" : "#6B7280" }}
+                  title="Speak item name"
+                >
+                  <Mic size={13} />
+                </button>
+              </div>
             </Field>
           </div>
         </div>
@@ -76,12 +116,24 @@ export default function AddItemModal({ items, onClose, onAdd }) {
           />
         </Field>
         <Field label="Hindi / local name (optional — helps voice billing)">
-          <input
-            className="ks-input"
-            value={form.hindi_name}
-            onChange={(e) => setForm({ ...form, hindi_name: e.target.value })}
-            placeholder="e.g. चीनी"
-          />
+          <div className="relative">
+            <input
+              className="ks-input"
+              style={{ paddingRight: "2.5rem" }}
+              value={form.hindi_name}
+              onChange={(e) => setForm({ ...form, hindi_name: e.target.value })}
+              placeholder="e.g. चीनी — tap mic to speak in Hindi"
+            />
+            <button
+              type="button"
+              onClick={() => startVoice("hindi_name")}
+              className={`absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${listeningField === "hindi_name" ? "ks-pulse" : ""}`}
+              style={{ background: listeningField === "hindi_name" ? "#4F46E5" : "#E7E9F3", color: listeningField === "hindi_name" ? "#fff" : "#6B7280" }}
+              title="बोलकर हिंदी नाम भरें"
+            >
+              <Mic size={13} />
+            </button>
+          </div>
         </Field>
         <Field label="Photo URL (optional)">
           <div className="flex items-center gap-2.5">
