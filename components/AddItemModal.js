@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Loader2, Mic, ScanLine, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Mic, ScanLine, ChevronDown } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Field from "@/components/ui/Field";
 import { nextCode } from "@/lib/inventoryHelpers";
@@ -15,7 +15,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
     price: "",
     cost_price: "",
     gst: "",
-    stock: "",
+    stock: "1",
     low_at: "5",
     code: nextCode(items),
     image_url: "",
@@ -26,10 +26,19 @@ export default function AddItemModal({ items, onClose, onAdd }) {
   const [listeningField, setListeningField] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
+  // quickMode = true after a barcode scan finds a product — shows compact price-entry view
+  const [quickMode, setQuickMode] = useState(false);
+  const priceRef = useRef(null);
   const recogRef = useRef(null);
   const valid = form.name.trim() && form.price !== "" && form.stock !== "" && /^\d{2}$/.test(form.code);
 
-  // Scan physical barcode → look up product name from Open Food Facts
+  // Auto-focus the price field when quick mode activates
+  useEffect(() => {
+    if (quickMode && priceRef.current) {
+      setTimeout(() => priceRef.current?.focus(), 80);
+    }
+  }, [quickMode]);
+
   function startScan() {
     if (!("BarcodeDetector" in window)) {
       alert("Barcode scanner not supported in this browser. Please type the barcode manually.");
@@ -53,12 +62,10 @@ export default function AddItemModal({ items, onClose, onAdd }) {
             setScanning(false);
             const val = result.rawValue;
             setForm((prev) => ({ ...prev, barcode: val }));
-            lookupByBarcode(val);
+            lookupByBarcode(val, true);
           }
         } catch { /* no code found yet */ }
       }, 400);
-
-      // Auto-stop after 30s
       setTimeout(() => {
         if (active) {
           clearInterval(interval);
@@ -70,11 +77,10 @@ export default function AddItemModal({ items, onClose, onAdd }) {
     }).catch(() => setScanning(false));
   }
 
-  // Look up product details by barcode number
-  async function lookupByBarcode(barcode) {
+  async function lookupByBarcode(barcode, fromScan = false) {
     setLookingUp(true);
     try {
-      const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,image_front_small_url,categories_tags`);
+      const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,image_front_small_url`);
       const json = await res.json();
       if (json.status === 1 && json.product?.product_name) {
         const p = json.product;
@@ -83,6 +89,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
           name: prev.name || p.product_name,
           image_url: prev.image_url || p.image_front_small_url || "",
         }));
+        if (fromScan) setQuickMode(true);
       }
     } catch { /* ignore */ } finally {
       setLookingUp(false);
@@ -134,6 +141,77 @@ export default function AddItemModal({ items, onClose, onAdd }) {
     }
   }
 
+  // ── Quick mode: compact view shown right after a successful barcode scan ──
+  if (quickMode) {
+    return (
+      <Modal title="Set selling price" onClose={onClose}>
+        <div className="space-y-4">
+          {/* Product preview */}
+          <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "#F8F9FD" }}>
+            {form.image_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={form.image_url}
+                alt=""
+                className="w-14 h-14 rounded-lg object-cover shrink-0"
+                onError={(e) => { e.target.style.display = "none"; }}
+              />
+            )}
+            <div className="min-w-0">
+              <p className="font-semibold text-sm leading-tight truncate">{form.name}</p>
+              <p className="text-xs text-[#6B7280] mt-0.5 ks-mono">{form.barcode}</p>
+            </div>
+          </div>
+
+          {/* Price — auto-focused */}
+          <Field label="Selling price (₹)">
+            <input
+              ref={priceRef}
+              type="number"
+              className="ks-input text-lg font-semibold"
+              placeholder="0"
+              value={form.price}
+              onChange={(e) => setForm({ ...form, price: e.target.value })}
+            />
+          </Field>
+
+          {/* Stock — defaults to 1 */}
+          <Field label="Opening stock">
+            <input
+              type="number"
+              className="ks-input"
+              value={form.stock}
+              onChange={(e) => setForm({ ...form, stock: e.target.value })}
+            />
+          </Field>
+
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
+          )}
+
+          <button
+            disabled={!valid || saving}
+            onClick={handleAdd}
+            className="ks-btn-primary w-full flex items-center justify-center gap-2"
+          >
+            {saving && <Loader2 size={16} className="animate-spin" />}
+            Add to inventory
+          </button>
+
+          {/* Escape hatch to full form */}
+          <button
+            type="button"
+            onClick={() => setQuickMode(false)}
+            className="w-full text-xs text-[#6B7280] flex items-center justify-center gap-1 pt-1"
+          >
+            <ChevronDown size={13} /> More details (category, GST, Hindi name…)
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
+  // ── Full form ──
   return (
     <Modal title="Add new item" onClose={onClose}>
       <div className="space-y-3.5">
@@ -171,7 +249,6 @@ export default function AddItemModal({ items, onClose, onAdd }) {
           </div>
         </div>
 
-        {/* Barcode — scan the physical product to auto-fill name */}
         <Field label="Barcode">
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -199,12 +276,10 @@ export default function AddItemModal({ items, onClose, onAdd }) {
               {scanning ? "Scanning…" : "Scan"}
             </button>
           </div>
-          {lookingUp && (
-            <p className="text-xs text-[#4F46E5] mt-1">Looking up product…</p>
-          )}
+          {lookingUp && <p className="text-xs text-[#4F46E5] mt-1">Looking up product…</p>}
         </Field>
 
-        <Field label="Hindi / local name (optional — helps voice billing)">
+        <Field label="Hindi / local name (optional)">
           <div className="relative">
             <input
               className="ks-input"
