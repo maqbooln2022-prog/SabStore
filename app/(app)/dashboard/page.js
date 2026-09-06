@@ -241,6 +241,7 @@ export default function DashboardPage() {
         />
       </div>
 
+      {(!activeShop?.enabled_modules || activeShop.enabled_modules.includes("charts")) && (
       <div className="grid md:grid-cols-2 gap-4 mt-5">
         <div className="ks-card p-5">
           <div className="flex items-center justify-between mb-4">
@@ -282,6 +283,7 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+      )}
 
       <div className="grid md:grid-cols-3 gap-4 mt-5">
         <div className="ks-card">
