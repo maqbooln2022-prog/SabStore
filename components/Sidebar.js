@@ -80,8 +80,8 @@ export default function Sidebar({ onOpenSettings, onNavigate }) {
   const topNav = visibleNav.filter((item) => TOP_LEVEL_KEYS.includes(item.key));
   const moreNav = [
     ...visibleNav.filter((item) => !TOP_LEVEL_KEYS.includes(item.key)),
-    ...(isOwner ? [{ href: "/staff", label: "Staff", icon: Users }] : []),
-    ...(isOwner ? [{ href: "/clearance", label: "Clearance offers", icon: Tag }] : []),
+    ...(isOwner && enabledModules.includes("staff") ? [{ href: "/staff", label: "Staff", icon: Users }] : []),
+    ...(isOwner && enabledModules.includes("clearance") ? [{ href: "/clearance", label: "Clearance offers", icon: Tag }] : []),
   ];
   const moreActive = moreNav.some((item) => item.href === pathname);
   const showMore = moreOpen || moreActive;
