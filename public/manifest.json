@@ -4,15 +4,35 @@
   "description": "Billing, inventory, and udhaar for local shops",
   "start_url": "/billing",
   "display": "standalone",
-  "background_color": "#0B0D12",
-  "theme_color": "#F2A93B",
-  "orientation": "portrait-primary",
+  "background_color": "#5B2CDB",
+  "theme_color": "#5B2CDB",
+  "orientation": "any",
   "icons": [
     {
       "src": "/logo-mark.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Bill",
+      "short_name": "Bill",
+      "url": "/billing",
+      "description": "Create a new bill"
+    },
+    {
+      "name": "Inventory",
+      "short_name": "Stock",
+      "url": "/inventory",
+      "description": "View and manage inventory"
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Home",
+      "url": "/dashboard",
+      "description": "Today's summary"
     }
   ]
 }

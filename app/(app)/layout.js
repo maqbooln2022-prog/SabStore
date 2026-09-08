@@ -124,7 +124,7 @@ function AppShell({ children }) {
       {showStoreSettings && <StoreSettingsModal onClose={() => setShowStoreSettings(false)} />}
 
       <div className="ks-main flex-1 min-w-0">
-        <main className="flex-1 min-w-0 ks-page-pad pb-16 max-w-5xl">{children}</main>
+        <main className="flex-1 min-w-0 ks-page-pad ks-page-bottom-safe max-w-5xl">{children}</main>
       </div>
 
       {toast && <Toast msg={toast.msg} tone={toast.tone} />}
