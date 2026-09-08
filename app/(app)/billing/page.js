@@ -393,314 +393,329 @@ function BillingPageInner() {
 
   const lowStockItems = pricedItems.filter((i) => i.low_at > 0 && i.stock <= i.low_at);
 
-  function billProfit(bill) {
-    return (bill.items || []).reduce((s, line) => {
-      const cost = line.cost_price ?? items.find((i) => i.id === line.shop_product_id)?.cost_price ?? null;
-      if (cost == null) return s;
-      return s + (line.price - cost) * line.qty;
-    }, 0);
+  // Items shown in the product grid — all items, filtered by search or category
+  const displayItems = query
+    ? pricedItems.filter((i) => i.name.toLowerCase().includes(query.toLowerCase()) || i.code === query.trim())
+    : activeCategory
+    ? pricedItems.filter((i) => i.category === activeCategory)
+    : pricedItems;
+
+  // GST extracted from cart (prices are GST-inclusive)
+  const cartGst = cart.reduce((s, c) => {
+    if (!c.gst) return s;
+    return s + Math.round(c.qty * c.price * c.gst / (100 + c.gst));
+  }, 0);
+
+  const nextBillNo = `KS-${1000 + bills.length + 1}`;
+
+  function clearCart() {
+    setCart([]);
+    setCustomer({ name: "", phone: "" });
+    setBillType("cash");
+    setLoyaltyDiscount(false);
+    setManualDiscount({ type: "pct", value: "" });
+    setLastBill(null);
+    setQuery("");
+    setActiveCategory(null);
   }
 
   return (
-    <div className="pt-6 ks-billing-grid">
-      <div>
-        {lowStockItems.length > 0 && (
-          <div className="ks-card p-3 mb-4 flex items-center gap-2 flex-wrap" style={{ borderLeft: "4px solid #C13F45" }}>
-            <AlertTriangle size={14} style={{ color: "#C13F45" }} className="shrink-0" />
-            <span className="text-xs font-semibold" style={{ color: "#C13F45" }}>Low stock:</span>
-            <span className="text-xs text-[#6B7280] flex-1">
-              {lowStockItems.slice(0, 5).map((i) => `${i.name} (${i.stock} ${i.unit})`).join(" · ")}
-              {lowStockItems.length > 5 && ` · +${lowStockItems.length - 5} more`}
-            </span>
-          </div>
-        )}
-        {quickItems.length > 0 && (
-          <div className="mb-4">
-            <div className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-2 flex items-center gap-1.5">
-              <Star size={12} fill="#F2A93B" color="#F2A93B" /> Quick add
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {quickItems.map((r) => {
-                const c = categoryColor(r.category);
-                return (
-                  <button
-                    key={r.id}
-                    onClick={() => setPickerItem(r)}
-                    disabled={r.stock <= 0}
-                    className="text-left p-3 rounded-2xl transition-transform hover:-translate-y-0.5 active:scale-95 disabled:opacity-40 disabled:hover:translate-y-0"
-                    style={{ background: c.bg }}
-                  >
-                    {r.clearancePct && (
-                      <span className="ks-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full mb-1.5 inline-block" style={{ background: "#C13F45", color: "#fff" }}>
-                        −{r.clearancePct}%
-                      </span>
-                    )}
-                    <p className="font-bold text-sm leading-tight line-clamp-2" style={{ color: c.text }}>{r.name}</p>
-                    <p className="ks-mono text-xs mt-0.5" style={{ color: c.text, opacity: 0.7 }}>
-                      {r.originalPrice && <span className="line-through mr-1">{rupee(r.originalPrice)}</span>}
-                      {rupee(r.price)}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <button
-          onClick={() => setShowVoiceBilling(true)}
-          className="w-full flex items-center gap-3 mb-3 px-4 py-3 rounded-2xl font-semibold text-sm transition-transform active:scale-[0.98]"
-          style={{ background: "var(--accent)", color: "#fff" }}
-        >
-          <Mic size={18} />
-          <span>Voice billing mode</span>
-          <span className="ml-auto text-xs font-normal opacity-75">Speak to add items &amp; print</span>
-        </button>
-
-        <div className="relative">
-          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#B0A996]" />
-          <input
-            placeholder="Search by name or 2-digit code..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="ks-input py-3"
-            style={{ paddingLeft: "2.5rem", paddingRight: "3rem" }}
-          />
-          <button
-            onClick={startBarcodeScanner}
-            title="Scan barcode with camera"
-            className={`absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${scannerActive ? "ks-pulse" : ""}`}
-            style={{ background: scannerActive ? "#4F46E5" : "#E7E9F3", color: scannerActive ? "#fff" : "#6B7280" }}
-          >
-            <ScanLine size={15} />
+    <div className="pt-4">
+      {/* Page header */}
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <h1 className="ks-display font-bold text-xl">New Sale</h1>
+        <div className="flex items-center gap-3">
+          <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            {new Date().toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "long", year: "numeric" })}
+          </span>
+          <button onClick={clearCart} className="ks-btn-primary flex items-center gap-1.5 text-sm py-2">
+            <Plus size={14} /> New Sale
           </button>
-          {results.length > 0 && (
-            <div className="absolute z-10 mt-1.5 w-full bg-white rounded-2xl overflow-hidden shadow-xl border border-[#E7E9F3]">
-              {results.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => setPickerItem(r)}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-[#F8F9FD] flex items-center justify-between border-b border-[#E7E9F3] last:border-0"
-                >
-                  <span className="flex items-center gap-2 min-w-0 flex-1">
-                    <ItemThumb item={r} size={24} />
-                    <span className="ks-mono text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ background: "#E7E9F3", color: "#6B7280" }}>
-                      {r.code}
-                    </span>
-                    <span className="font-medium truncate">{r.name}</span>
-                    {r.clearancePct && (
-                      <span className="ks-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#C13F45", color: "#fff" }}>
-                        −{r.clearancePct}%
-                      </span>
-                    )}
-                  </span>
-                  <span className="ks-mono text-xs text-[#6B7280]">
-                    {r.originalPrice && <span className="line-through mr-1">{rupee(r.originalPrice)}</span>}
-                    {rupee(r.price)} · {r.stock} {r.unit} left
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-
-        <div className="ks-card mt-4 overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#E7E9F3]">
-            <h2 className="ks-display font-bold">Bill items</h2>
-          </div>
-          {cart.length === 0 ? (
-            <p className="text-sm text-[#6B7280] p-8 text-center">Search and tap an item above to add it to the bill.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <tbody>
-                {cart.map((c) => (
-                  <tr key={c.shop_product_id} className="border-b border-[#E7E9F3] last:border-0">
-                    <td className="px-5 py-3 font-medium">
-                      <span className="ks-mono text-[10px] font-bold px-1.5 py-0.5 rounded mr-1.5" style={{ background: "#E7E9F3", color: "#6B7280" }}>
-                        {c.code}
-                      </span>
-                      {c.name}
-                      {c.clearancePct && (
-                        <span className="ml-1.5 ks-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#C13F45", color: "#fff" }}>
-                          −{c.clearancePct}%
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-2 py-3 ks-mono text-[#6B7280]">
-                      {c.originalPrice && <span className="line-through mr-1">{rupee(c.originalPrice)}</span>}
-                      {rupee(c.price)}
-                    </td>
-                    <td className="px-2 py-3">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => updateQty(c.shop_product_id, c.qty - 1)} className="ks-qtybtn">
-                          <Minus size={13} />
-                        </button>
-                        <span className="ks-mono w-7 text-center font-semibold">{c.qty}</span>
-                        <button onClick={() => updateQty(c.shop_product_id, c.qty + 1)} className="ks-qtybtn">
-                          <Plus size={13} />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 ks-mono font-bold text-right">{rupee(c.qty * c.price)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
         </div>
       </div>
 
-      <div>
-        <div className="ks-card p-5 sticky top-40">
-          <h2 className="ks-display font-bold mb-3">Customer (optional)</h2>
-          <div className="space-y-2.5 mb-3">
-            <input
-              placeholder="Customer name"
-              value={customer.name}
-              onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
-              className="ks-input"
-            />
-            <input
-              placeholder="Phone number"
-              value={customer.phone}
-              onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
-              className="ks-input"
-            />
+      <div className="ks-billing-grid">
+        {/* ── Left: product grid ── */}
+        <div>
+          {/* Search + category + voice */}
+          <div className="flex gap-2 mb-3">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-secondary)" }} />
+              <input
+                className="ks-input"
+                style={{ paddingLeft: "2.25rem", paddingRight: "2.5rem" }}
+                placeholder="Search products..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              <button
+                onClick={startBarcodeScanner}
+                title="Scan barcode"
+                className={`absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center ${scannerActive ? "ks-pulse" : ""}`}
+                style={{ background: scannerActive ? "#4F46E5" : "transparent", color: scannerActive ? "#fff" : "var(--text-secondary)" }}
+              >
+                <ScanLine size={14} />
+              </button>
+            </div>
+            <select
+              className="ks-input shrink-0"
+              style={{ width: "148px" }}
+              value={activeCategory || ""}
+              onChange={(e) => setActiveCategory(e.target.value || null)}
+            >
+              <option value="">All Categories</option>
+              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <button
+              onClick={() => setShowVoiceBilling(true)}
+              title="Voice billing"
+              className="w-10 h-10 flex items-center justify-center rounded-xl shrink-0"
+              style={{ background: "var(--accent)", color: "#fff" }}
+            >
+              <Mic size={16} />
+            </button>
           </div>
 
-          {isLoyal && (
-            <div className="rounded-xl px-3 py-2.5 mb-3 flex items-center justify-between gap-2" style={{ background: "#FCEEDA" }}>
-              <span className="text-xs font-semibold text-[#7A5209] flex items-center gap-1.5">⭐ Loyal customer · visit #{previousVisits + 1}</span>
-              <button
-                onClick={() => setLoyaltyDiscount((v) => !v)}
-                className="text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0"
-                style={{ background: loyaltyDiscount ? "#F2A93B" : "#fff", color: loyaltyDiscount ? "#fff" : "#B5720B" }}
-              >
-                {loyaltyDiscount ? "5% applied ✓" : "Apply 5% off"}
-              </button>
+          {/* Low stock alert */}
+          {lowStockItems.length > 0 && (
+            <div className="ks-card p-2.5 mb-3 flex items-center gap-2 flex-wrap" style={{ borderLeft: "3px solid #C13F45" }}>
+              <AlertTriangle size={13} style={{ color: "#C13F45" }} className="shrink-0" />
+              <span className="text-xs font-semibold" style={{ color: "#C13F45" }}>Low stock:</span>
+              <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                {lowStockItems.slice(0, 4).map((i) => `${i.name} (${i.stock})`).join(" · ")}
+                {lowStockItems.length > 4 && ` +${lowStockItems.length - 4} more`}
+              </span>
             </div>
           )}
 
-          <div className="mb-3">
-            <p className="text-xs font-semibold text-[#6B7280] mb-1.5 flex items-center gap-1">
-              <Tag size={11} /> Extra discount (optional)
+          {/* Product grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {displayItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => item.stock > 0 && setPickerItem(item)}
+                disabled={item.stock <= 0}
+                className="ks-card p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-default disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              >
+                {item.clearancePct && (
+                  <span className="ks-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full mb-1.5 inline-block" style={{ background: "#C13F45", color: "#fff" }}>
+                    −{item.clearancePct}%
+                  </span>
+                )}
+                <p className="font-bold text-sm leading-tight line-clamp-2 mb-0.5">{item.name}</p>
+                <p className="text-[11px] mb-2" style={{ color: "var(--text-secondary)" }}>{item.category}</p>
+                <p className="font-bold text-sm" style={{ color: "#D97706" }}>
+                  {item.originalPrice && (
+                    <span className="line-through mr-1 font-normal opacity-60">{rupee(item.originalPrice)}</span>
+                  )}
+                  {rupee(item.price)}
+                  <span className="font-normal text-[11px] ml-0.5">/{item.unit}</span>
+                </p>
+                <p className="text-[11px] mt-1" style={{ color: "var(--text-secondary)" }}>
+                  {item.stock > 0 ? `${item.stock} in stock` : "Out of stock"}
+                </p>
+              </button>
+            ))}
+            {displayItems.length === 0 && (
+              <div className="col-span-3 py-12 text-center text-sm" style={{ color: "var(--text-secondary)" }}>
+                No products found
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Right: current bill panel ── */}
+        <div>
+          <div className="ks-card p-5 sticky top-20">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-base">Current Bill</h2>
+              <span className="ks-mono text-sm font-bold" style={{ color: "#D97706" }}>{nextBillNo}</span>
+            </div>
+
+            {/* Cart items */}
+            {cart.length === 0 ? (
+              <div className="py-8 text-center text-sm" style={{ color: "var(--text-secondary)" }}>
+                Tap a product to add it
+              </div>
+            ) : (
+              <div className="space-y-2.5 mb-4 max-h-52 overflow-y-auto ks-scroll">
+                {cart.map((c) => (
+                  <div key={c.shop_product_id} className="flex items-center gap-2">
+                    <span className="text-sm flex-1 font-medium truncate">{c.name}</span>
+                    {c.clearancePct && (
+                      <span className="ks-mono text-[9px] font-bold px-1 py-0.5 rounded-full shrink-0" style={{ background: "#C13F45", color: "#fff" }}>
+                        −{c.clearancePct}%
+                      </span>
+                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button onClick={() => updateQty(c.shop_product_id, c.qty - 1)} className="ks-qtybtn"><Minus size={11} /></button>
+                      <span className="ks-mono w-5 text-center text-xs font-bold">{c.qty}</span>
+                      <button onClick={() => updateQty(c.shop_product_id, c.qty + 1)} className="ks-qtybtn"><Plus size={11} /></button>
+                    </div>
+                    <span className="ks-mono text-xs font-semibold w-14 text-right shrink-0">{rupee(c.qty * c.price)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Totals */}
+            {cart.length > 0 && (
+              <div className="py-3 border-t border-b mb-4 space-y-1.5" style={{ borderColor: "var(--border)" }}>
+                <div className="flex justify-between text-sm">
+                  <span>Subtotal</span>
+                  <span className="ks-mono">{rupee(subtotal)}</span>
+                </div>
+                {cartGst > 0 && (
+                  <div className="flex justify-between text-sm" style={{ color: "var(--text-secondary)" }}>
+                    <span>GST</span>
+                    <span className="ks-mono">{rupee(cartGst)}</span>
+                  </div>
+                )}
+                {clearanceSavings > 0 && (
+                  <div className="flex justify-between text-xs" style={{ color: "#C13F45" }}>
+                    <span>Clearance savings</span>
+                    <span className="ks-mono">−{rupee(clearanceSavings)}</span>
+                  </div>
+                )}
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-xs" style={{ color: "#D97706" }}>
+                    <span>Discount</span>
+                    <span className="ks-mono">−{rupee(discountAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-base pt-1">
+                  <span>Total</span>
+                  <span className="ks-mono">{rupee(total)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Customer */}
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "var(--text-secondary)" }}>
+              Customer Name (Optional)
             </p>
-            <div className="flex gap-1.5 items-center">
+            <input
+              className="ks-input mb-2"
+              placeholder="Walk-in Customer"
+              value={customer.name}
+              onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+            />
+            <input
+              className="ks-input mb-3"
+              placeholder="Phone number"
+              value={customer.phone}
+              onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+            />
+
+            {/* Loyalty */}
+            {isLoyal && (
+              <div className="rounded-xl px-3 py-2 mb-3 flex items-center justify-between gap-2" style={{ background: "#FCEEDA" }}>
+                <span className="text-xs font-semibold text-[#7A5209]">⭐ Loyal · visit #{previousVisits + 1}</span>
+                <button
+                  onClick={() => setLoyaltyDiscount((v) => !v)}
+                  className="text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0"
+                  style={{ background: loyaltyDiscount ? "#F2A93B" : "#fff", color: loyaltyDiscount ? "#fff" : "#B5720B" }}
+                >
+                  {loyaltyDiscount ? "5% ✓" : "Apply 5%"}
+                </button>
+              </div>
+            )}
+
+            {/* Extra discount */}
+            <div className="flex gap-1.5 items-center mb-3">
               <button
                 onClick={() => setManualDiscount((d) => ({ ...d, type: "pct" }))}
-                className={`text-xs font-bold px-2.5 py-1.5 rounded-full shrink-0 ${manualDiscount.type === "pct" ? "bg-[#000000] text-white" : "bg-[#E7E9F3] text-[#6B7280]"}`}
-              >
-                %
-              </button>
+                className="text-xs font-bold px-2.5 py-1.5 rounded-full shrink-0"
+                style={{ background: manualDiscount.type === "pct" ? "var(--text-primary)" : "var(--bg-surface-alt)", color: manualDiscount.type === "pct" ? "#fff" : "var(--text-secondary)" }}
+              >%</button>
               <button
                 onClick={() => setManualDiscount((d) => ({ ...d, type: "amt" }))}
-                className={`text-xs font-bold px-2.5 py-1.5 rounded-full shrink-0 ${manualDiscount.type === "amt" ? "bg-[#000000] text-white" : "bg-[#E7E9F3] text-[#6B7280]"}`}
-              >
-                ₹
-              </button>
+                className="text-xs font-bold px-2.5 py-1.5 rounded-full shrink-0"
+                style={{ background: manualDiscount.type === "amt" ? "var(--text-primary)" : "var(--bg-surface-alt)", color: manualDiscount.type === "amt" ? "#fff" : "var(--text-secondary)" }}
+              >₹</button>
               <input
                 type="number"
                 min="0"
-                placeholder={manualDiscount.type === "pct" ? "e.g. 10 for 10%" : "e.g. 50"}
+                placeholder="Discount"
                 value={manualDiscount.value}
                 onChange={(e) => setManualDiscount((d) => ({ ...d, value: e.target.value }))}
                 className="ks-input text-sm py-1.5 flex-1"
               />
             </div>
-          </div>
 
-          <div className="flex gap-1.5 mb-4 bg-[#E7E9F3] p-1 rounded-full">
-            <button
-              onClick={() => setBillType("cash")}
-              className={`flex-1 text-xs font-semibold py-1.5 rounded-full transition-colors ${billType === "cash" ? "bg-[#000000] text-white" : "text-[#6B7280]"}`}
-            >
-              Cash / Paid
-            </button>
-            <button
-              onClick={() => setBillType("credit")}
-              className={`flex-1 text-xs font-semibold py-1.5 rounded-full transition-colors ${billType === "credit" ? "bg-[#B5399C] text-white" : "text-[#6B7280]"}`}
-            >
-              Udhaar (Credit)
-            </button>
-          </div>
-          {billType === "credit" && !cleanPhone && (
-            <p className="text-[11px] text-[#C13F45] font-medium -mt-2.5 mb-3">Add a mobile number to bill this on udhaar.</p>
-          )}
-
-          <div className="py-4 border-t border-b border-[#E7E9F3] mb-4 space-y-1.5">
-            {clearanceSavings > 0 && (
-              <div className="flex items-center justify-between text-xs" style={{ color: "#C13F45" }}>
-                <span>🏷️ Clearance savings</span>
-                <span className="ks-mono">−{rupee(clearanceSavings)}</span>
-              </div>
-            )}
-            {discountAmount > 0 && (
-              <div className="flex items-center justify-between text-xs text-[#6B7280]">
-                <span>Subtotal</span>
-                <span className="ks-mono">{rupee(subtotal)}</span>
-              </div>
-            )}
-            {loyaltyDiscountAmount > 0 && (
-              <div className="flex items-center justify-between text-xs" style={{ color: "#B5720B" }}>
-                <span>Loyalty discount (5%)</span>
-                <span className="ks-mono">−{rupee(loyaltyDiscountAmount)}</span>
-              </div>
-            )}
-            {manualDiscountAmount > 0 && (
-              <div className="flex items-center justify-between text-xs" style={{ color: "#B5720B" }}>
-                <span>Extra discount{manualDiscount.type === "pct" ? ` (${manualDiscount.value}%)` : ""}</span>
-                <span className="ks-mono">−{rupee(manualDiscountAmount)}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between pt-1">
-              <span className="ks-display font-bold">Total</span>
-              <span className="ks-mono text-2xl font-bold text-[#4F46E5]">{rupee(total)}</span>
+            {/* Payment type */}
+            <div className="flex gap-1.5 mb-3 p-1 rounded-full" style={{ background: "var(--bg-surface-alt)" }}>
+              <button
+                onClick={() => setBillType("cash")}
+                className="flex-1 text-xs font-semibold py-1.5 rounded-full transition-colors"
+                style={{ background: billType === "cash" ? "var(--text-primary)" : "transparent", color: billType === "cash" ? "#fff" : "var(--text-secondary)" }}
+              >
+                Cash / Paid
+              </button>
+              <button
+                onClick={() => setBillType("credit")}
+                className="flex-1 text-xs font-semibold py-1.5 rounded-full transition-colors"
+                style={{ background: billType === "credit" ? "#B5399C" : "transparent", color: billType === "credit" ? "#fff" : "var(--text-secondary)" }}
+              >
+                Udhaar
+              </button>
             </div>
-          </div>
-          <button disabled={cart.length === 0 || generating} onClick={generateBill} className="ks-btn-primary w-full flex items-center justify-center gap-2">
-            {generating && <Loader2 size={16} className="animate-spin" />}
-            {billType === "credit" ? "Generate udhaar bill" : "Generate bill"}
-          </button>
+            {billType === "credit" && !cleanPhone && (
+              <p className="text-[11px] font-medium mb-2" style={{ color: "#C13F45" }}>Add a phone number for udhaar.</p>
+            )}
 
-          {lastBill && (
-            <div className="mt-4 pt-4 border-t border-[#E7E9F3] ks-pop">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle2 size={18} className="text-[#4F46E5]" />
-                <p className="text-sm font-bold text-[#4F46E5]">Bill generated!</p>
-              </div>
-              <p className="text-xs text-[#6B7280] mb-2.5">
-                Bill: <span className="ks-mono font-semibold text-[#000000]">{lastBill.bill_no}</span> · {rupee(lastBill.total)}
-              </p>
-              {taxBreakup(lastBill.items).taxAmt > 0 && (
-                <p className="text-[11px] text-[#6B7280] mb-2.5 ks-mono">
-                  Taxable {rupee(taxBreakup(lastBill.items).taxable)} + GST {rupee(taxBreakup(lastBill.items).taxAmt)}
-                </p>
-              )}
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => printBill(lastBill)} className="ks-btn-outline w-full flex items-center justify-center gap-1.5">
-                  <Printer size={15} /> Print
-                </button>
-                <button
-                  onClick={() => window.open(whatsappLink(lastBill.customer_phone, billMessageText(lastBill, activeShop?.name, activeShop?.gstin)), "_blank")}
-                  disabled={!lastBill.customer_phone}
-                  title={!lastBill.customer_phone ? "Add a customer mobile number to send the bill" : "Send via WhatsApp"}
-                  className="w-full rounded-full text-white text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-40"
-                  style={{ background: "#25D366" }}
-                >
-                  <MessageCircle size={15} /> Send bill
-                </button>
-              </div>
-              {!lastBill.customer_phone && (
-                <p className="text-[11px] text-[#6B7280] mt-1.5">Add a customer mobile number next time to send the bill directly.</p>
-              )}
-              {activeShop?.upi_id && lastBill.payment_type !== "credit" && (
-                <div className="mt-3">
-                  <UpiQrCard upiId={activeShop.upi_id} payeeName={activeShop.name} amount={lastBill.total} note={lastBill.bill_no} />
+            {/* Generate Bill */}
+            <button
+              disabled={cart.length === 0 || generating}
+              onClick={generateBill}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm mb-2 disabled:opacity-40 transition-opacity"
+              style={{ background: "var(--text-primary)", color: "#fff" }}
+            >
+              {generating ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+              {billType === "credit" ? "Generate Udhaar Bill" : "Generate Bill"}
+            </button>
+
+            {cart.length > 0 && (
+              <button onClick={clearCart} className="w-full text-sm text-center py-1" style={{ color: "var(--text-secondary)" }}>
+                Clear Cart
+              </button>
+            )}
+
+            {/* Last bill actions */}
+            {lastBill && (
+              <div className="mt-4 pt-4 border-t ks-pop" style={{ borderColor: "var(--border)" }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle2 size={16} style={{ color: "#4F46E5" }} />
+                  <p className="text-sm font-bold" style={{ color: "#4F46E5" }}>Bill generated!</p>
+                  <span className="ks-mono text-xs ml-auto" style={{ color: "var(--text-secondary)" }}>{lastBill.bill_no} · {rupee(lastBill.total)}</span>
                 </div>
-              )}
-            </div>
-          )}
+                {taxBreakup(lastBill.items).taxAmt > 0 && (
+                  <p className="text-[11px] mb-2 ks-mono" style={{ color: "var(--text-secondary)" }}>
+                    GST {rupee(taxBreakup(lastBill.items).taxAmt)} included
+                  </p>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => printBill(lastBill)} className="ks-btn-outline flex items-center justify-center gap-1.5 text-xs py-2">
+                    <Printer size={13} /> Print
+                  </button>
+                  <button
+                    onClick={() => window.open(whatsappLink(lastBill.customer_phone, billMessageText(lastBill, activeShop?.name, activeShop?.gstin)), "_blank")}
+                    disabled={!lastBill.customer_phone}
+                    className="flex items-center justify-center gap-1.5 text-xs py-2 rounded-xl font-semibold disabled:opacity-40"
+                    style={{ background: "#25D366", color: "#fff" }}
+                  >
+                    <MessageCircle size={13} /> WhatsApp
+                  </button>
+                </div>
+                {activeShop?.upi_id && lastBill.payment_type !== "credit" && (
+                  <div className="mt-3">
+                    <UpiQrCard upiId={activeShop.upi_id} payeeName={activeShop.name} amount={lastBill.total} note={lastBill.bill_no} />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -710,96 +725,14 @@ function BillingPageInner() {
         </div>
       )}
 
-      <div className="mt-6 ks-no-print" style={{ gridColumn: "1 / -1" }}>
-        <button
-          onClick={() => setShowHistory((v) => !v)}
-          className="flex items-center gap-2 text-sm font-semibold mb-3"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          <History size={15} />
-          Recent bills ({bills.length})
-          <span className="text-xs font-normal">{showHistory ? "▲ hide" : "▼ show"}</span>
-        </button>
-        {showHistory && (
-          <div className="ks-card overflow-hidden overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left ks-mono text-[11px] uppercase tracking-wide text-[#6B7280] border-b border-[#E7E9F3]">
-                  <th className="px-4 py-3 font-medium">Bill #</th>
-                  <th className="px-4 py-3 font-medium">Date</th>
-                  <th className="px-4 py-3 font-medium">Customer</th>
-                  <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 font-medium text-right">Total</th>
-                  <th className="px-4 py-3 font-medium text-right">Profit</th>
-                  <th className="px-4 py-3 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {bills.slice(0, 50).map((b) => {
-                  const profit = billProfit(b);
-                  const hasProfit = (b.items || []).some((l) => l.cost_price != null || items.find((i) => i.id === l.shop_product_id)?.cost_price != null);
-                  return (
-                    <tr key={b.id} className="border-b border-[#E7E9F3] last:border-0 hover:bg-[#F8F9FD]">
-                      <td className="px-4 py-2.5 ks-mono font-bold text-xs">{b.bill_no}</td>
-                      <td className="px-4 py-2.5 text-xs text-[#6B7280]">
-                        {new Date(b.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs">{b.customer_name || <span className="text-[#B0A996]">—</span>}</td>
-                      <td className="px-4 py-2.5">
-                        <span
-                          className="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize"
-                          style={{ background: b.payment_type === "credit" ? "#F3E8FD" : "#E4F5F0", color: b.payment_type === "credit" ? "#B5399C" : "#4F46E5" }}
-                        >
-                          {b.payment_type}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 ks-mono font-semibold text-right">{rupee(b.total)}</td>
-                      <td className="px-4 py-2.5 ks-mono text-right text-xs">
-                        {hasProfit ? (
-                          <span className="font-semibold" style={{ color: profit >= 0 ? "#4F46E5" : "#C13F45" }}>
-                            {profit >= 0 ? "+" : ""}{rupee(profit)}
-                          </span>
-                        ) : (
-                          <span className="text-[#B0A996]">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <button
-                          onClick={() => printBill(b)}
-                          className="text-[10px] px-2 py-1 rounded-full font-semibold"
-                          style={{ background: "#E7E9F3", color: "#6B7280" }}
-                        >
-                          Print
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {bills.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-sm text-[#6B7280]">No bills yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
       {showVoiceBilling && (
-        <VoiceBillingModal
-          items={pricedItems}
-          onConfirm={handleVoiceBillingConfirm}
-          onClose={() => setShowVoiceBilling(false)}
-        />
+        <VoiceBillingModal items={pricedItems} onConfirm={handleVoiceBillingConfirm} onClose={() => setShowVoiceBilling(false)} />
       )}
       {pickerItem && (
         <QtyPickerModal
           item={pickerItem}
           onClose={() => setPickerItem(null)}
-          onConfirm={(qty) => {
-            addToCart(pickerItem, qty);
-            setPickerItem(null);
-          }}
+          onConfirm={(qty) => { addToCart(pickerItem, qty); setPickerItem(null); }}
         />
       )}
     </div>
