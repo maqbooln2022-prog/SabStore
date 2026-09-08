@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, ArrowUpCircle, ArrowDownCircle, Star, Loader2, Layers, Barcode, ScanLine } from "lucide-react";
+import { Search, Plus, ArrowUpCircle, ArrowDownCircle, Star, Loader2, Layers, Barcode, ScanLine, BarChart2, TrendingUp, TrendingDown, ChevronDown, ChevronUp } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import ItemThumb from "@/components/ItemThumb";
 import CategoryChip from "@/components/CategoryChip";
@@ -37,6 +37,7 @@ function InventoryPageInner() {
   const [batchesItem, setBatchesItem] = useState(null);
   const [barcodeItem, setBarcodeItem] = useState(null);
   const [showScanBill, setShowScanBill] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
 
   // Supports a "?add=1" deep link (e.g. from the dashboard's empty-stock
   // state) that jumps straight into the add-item flow.
@@ -69,6 +70,17 @@ function InventoryPageInner() {
   const filtered = items.filter(
     (i) => i.name.toLowerCase().includes(query.toLowerCase()) || i.code?.includes(query.trim())
   );
+
+  // Profit insights: items with cost_price set, ranked by margin %
+  const insightItems = items
+    .filter((i) => i.cost_price != null && i.price > 0)
+    .map((i) => ({
+      ...i,
+      margin: i.price - i.cost_price,
+      marginPct: Math.round(((i.price - i.cost_price) / i.price) * 100),
+    }))
+    .sort((a, b) => b.marginPct - a.marginPct);
+  const topMargin = insightItems[0]?.marginPct || 1;
 
   async function addItem(newItem) {
     const { code, price, cost_price, gst, stock, low_at, ...productFields } = newItem;
@@ -163,19 +175,82 @@ function InventoryPageInner() {
             style={{ paddingLeft: "2.25rem" }}
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setShowInsights((v) => !v)}
+            className="ks-btn-outline flex items-center gap-1.5"
+          >
+            <BarChart2 size={15} /> Insights {showInsights ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </button>
           <button
             onClick={() => setShowScanBill(true)}
             className="ks-btn-outline flex items-center gap-1.5"
             title="Scan supplier bill to auto-update stock"
           >
-            <ScanLine size={15} /> Scan supplier bill
+            <ScanLine size={15} /> Scan bill
           </button>
           <button onClick={() => setShowAdd(true)} className="ks-btn-primary flex items-center gap-1.5">
-            <Plus size={16} /> Add new item
+            <Plus size={16} /> Add item
           </button>
         </div>
       </div>
+
+      {showInsights && (
+        <div className="ks-card p-5 mb-4">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp size={16} style={{ color: "#4F46E5" }} />
+            <h2 className="ks-display font-bold">Profit per item</h2>
+            <span className="text-xs text-[#6B7280] ml-auto">margin % on selling price</span>
+          </div>
+          {insightItems.length === 0 ? (
+            <p className="text-sm text-[#6B7280]">Add purchase prices to items to see profit insights.</p>
+          ) : (
+            <div className="space-y-3">
+              {insightItems.map((i, idx) => {
+                const barPct = Math.round((i.marginPct / topMargin) * 100);
+                const isTop = idx < 3;
+                const isLoss = i.marginPct < 0;
+                return (
+                  <div key={i.id}>
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {isTop && !isLoss && <TrendingUp size={12} style={{ color: "#4F46E5", flexShrink: 0 }} />}
+                        {isLoss && <TrendingDown size={12} style={{ color: "#C13F45", flexShrink: 0 }} />}
+                        <span className="font-medium truncate">{i.name}</span>
+                        <span className="ks-mono text-[10px] shrink-0 text-[#6B7280]">{rupee(i.margin)} / {i.unit}</span>
+                      </div>
+                      <span
+                        className="ks-mono text-xs font-bold shrink-0 ml-3 px-2 py-0.5 rounded-full"
+                        style={isLoss
+                          ? { background: "#FDEAEA", color: "#C13F45" }
+                          : isTop
+                          ? { background: "#EEF0FB", color: "#4F46E5" }
+                          : { background: "#F3F4F8", color: "#6B7280" }}
+                      >
+                        {i.marginPct}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-[#F3F4F8] overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.max(0, barPct)}%`,
+                          background: isLoss ? "#C13F45" : isTop ? "#4F46E5" : "#B0A996",
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {items.filter((i) => i.cost_price == null).length > 0 && (
+            <p className="text-xs text-[#B0A996] mt-4">
+              {items.filter((i) => i.cost_price == null).length} item{items.filter((i) => i.cost_price == null).length > 1 ? "s" : ""} missing purchase price — add it in inventory to track margin.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="ks-card overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">

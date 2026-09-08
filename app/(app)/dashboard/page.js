@@ -286,24 +286,60 @@ export default function DashboardPage() {
       )}
 
       <div className="grid md:grid-cols-3 gap-4 mt-5">
-        <div className="ks-card">
+        <div className="ks-card overflow-hidden">
           <div className="px-5 py-4 border-b border-[#E7E9F3] flex items-center justify-between">
-            <h2 className="ks-display font-bold">Running low</h2>
-            <span className="ks-mono text-xs text-[#6B7280]">reorder soon</span>
-          </div>
-          <div className="p-5 space-y-3 max-h-72 overflow-y-auto ks-scroll">
-            {lowItems.length === 0 && <p className="text-sm text-[#6B7280]">Nothing running low right now. 🎉</p>}
-            {lowItems.map((i) => (
-              <div key={i.id} className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#E5484D] ks-pulse" />
-                  <span className="font-medium">{i.name}</span>
-                </div>
-                <span className="ks-mono text-[#C13F45] font-semibold">
-                  {i.stock} {i.unit} left
+            <div className="flex items-center gap-2">
+              <h2 className="ks-display font-bold">Stock alerts</h2>
+              {lowItems.length > 0 && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#FDEAEA", color: "#C13F45" }}>
+                  {lowItems.length}
                 </span>
-              </div>
-            ))}
+              )}
+            </div>
+            {lowItems.length > 0 && (
+              <button
+                onClick={() => router.push("/inventory")}
+                className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                style={{ background: "#E7E9F3", color: "#4F46E5" }}
+              >
+                View all
+              </button>
+            )}
+          </div>
+          <div className="divide-y divide-[#F3F4F8]">
+            {lowItems.length === 0 && (
+              <p className="text-sm text-[#6B7280] px-5 py-6">Nothing running low right now. 🎉</p>
+            )}
+            {[...lowItems].sort((a, b) => a.stock - b.stock).slice(0, 6).map((i) => {
+              const isOut = i.stock === 0;
+              return (
+                <div key={i.id} className="flex items-center justify-between px-5 py-3 hover:bg-[#F8F9FD] transition-colors">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span
+                      className={`shrink-0 text-[9px] font-extrabold px-1.5 py-0.5 rounded tracking-wide ${isOut ? "ks-pulse" : ""}`}
+                      style={isOut
+                        ? { background: "#FDEAEA", color: "#C13F45" }
+                        : { background: "#FFF4E0", color: "#B5720B" }}
+                    >
+                      {isOut ? "OUT" : "LOW"}
+                    </span>
+                    <span className="font-medium text-sm truncate">{i.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <span className="ks-mono text-xs font-semibold" style={{ color: isOut ? "#C13F45" : "#B5720B" }}>
+                      {i.stock} {i.unit}
+                    </span>
+                    <button
+                      onClick={() => router.push("/inventory")}
+                      className="text-[11px] font-bold px-2 py-1 rounded-lg"
+                      style={{ background: "#EEF0FB", color: "#4F46E5" }}
+                    >
+                      + Stock
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
