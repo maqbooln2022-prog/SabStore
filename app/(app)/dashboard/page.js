@@ -151,14 +151,14 @@ export default function DashboardPage() {
       <div className="ks-hero p-6 sm:p-7 mb-4">
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
-            <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
+            <p className="text-sm mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>
               {greeting()}{displayName(user) ? `, ${displayName(user)}` : ""} 👋
             </p>
             <div className="ks-hero-chip inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full mb-3">
               <TrendingUp size={13} /> Today&apos;s sales
             </div>
             <div className="ks-display text-4xl sm:text-5xl font-extrabold">{rupee(todaysSales)}</div>
-            <p className="text-sm mt-1.5" style={{ color: "var(--text-secondary)" }}>
+            <p className="text-sm mt-1.5" style={{ color: "rgba(255,255,255,0.8)" }}>
               {todaysBills.length} bill{todaysBills.length === 1 ? "" : "s"} · profit ~{rupee(todaysProfit)} today
             </p>
           </div>
