@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, ArrowUpCircle, ArrowDownCircle, Star, Loader2, Layers, Barcode, ScanLine, BarChart2, TrendingUp, TrendingDown, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Plus, ArrowUpCircle, ArrowDownCircle, Star, Loader2, Layers, Barcode, ScanLine, BarChart2, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Upload } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import ItemThumb from "@/components/ItemThumb";
 import CategoryChip from "@/components/CategoryChip";
@@ -11,6 +11,7 @@ import AdjustStockModal from "@/components/AdjustStockModal";
 import BatchesModal from "@/components/BatchesModal";
 import BarcodeModal from "@/components/BarcodeModal";
 import ScanBillModal from "@/components/ScanBillModal";
+import BulkImportModal from "@/components/BulkImportModal";
 import { reorderSuggestion } from "@/lib/inventoryHelpers";
 import { rupee } from "@/lib/format";
 import { fetchShopItems, flattenShopProduct } from "@/lib/products";
@@ -38,6 +39,7 @@ function InventoryPageInner() {
   const [barcodeItem, setBarcodeItem] = useState(null);
   const [showScanBill, setShowScanBill] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
 
   // Supports a "?add=1" deep link (e.g. from the dashboard's empty-stock
   // state) that jumps straight into the add-item flow.
@@ -181,6 +183,13 @@ function InventoryPageInner() {
             className="ks-btn-outline flex items-center gap-1.5"
           >
             <BarChart2 size={15} /> Insights {showInsights ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </button>
+          <button
+            onClick={() => setShowBulkImport(true)}
+            className="ks-btn-outline flex items-center gap-1.5"
+            title="Import multiple items from CSV"
+          >
+            <Upload size={15} /> Import
           </button>
           <button
             onClick={() => setShowScanBill(true)}
@@ -364,6 +373,13 @@ function InventoryPageInner() {
         </table>
       </div>
 
+      {showBulkImport && (
+        <BulkImportModal
+          onClose={() => { setShowBulkImport(false); load(); }}
+          onImport={addItem}
+          nextCode={() => nextCode(items)}
+        />
+      )}
       {showAdd && <AddItemModal items={items} onClose={() => setShowAdd(false)} onAdd={addItem} />}
       {adjustItem && (
         <AdjustStockModal
