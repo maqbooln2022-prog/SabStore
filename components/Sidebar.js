@@ -19,6 +19,7 @@ import {
   Tag,
   MoreHorizontal,
   ChevronRight,
+  ClipboardList,
 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import ShopTypeIcon from "@/components/ShopTypeIcon";
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { href: "/expenses", key: "expenses", label: "Expenses", icon: Wallet2 },
   { href: "/cashbook", key: "cashbook", label: "Cashbook", icon: BookOpen },
   { href: "/suppliers", key: "suppliers", label: "Suppliers", icon: Truck },
+  { href: "/purchase-orders", key: "purchase_orders", label: "Purchase orders", icon: ClipboardList },
 ];
 
 // These four stay one tap away; everything else — including the

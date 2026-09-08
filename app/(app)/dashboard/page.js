@@ -14,6 +14,7 @@ import {
   Loader2,
   CalendarClock,
   Tag,
+  Share2,
 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import StatCard from "@/components/StatCard";
@@ -24,6 +25,7 @@ import { customerBalance, topCustomers } from "@/lib/dashboardHelpers";
 import { fetchShopItems } from "@/lib/products";
 import MiniBarChart from "@/components/MiniBarChart";
 import { categoryColor } from "@/components/CategoryChip";
+import { whatsappLink, dailyReportText } from "@/lib/messaging";
 
 export default function DashboardPage() {
   const { supabase, activeShopId, activeShop, user, isOwner } = useShop();
@@ -163,6 +165,12 @@ export default function DashboardPage() {
           <div className="flex flex-col items-end gap-2">
             <button onClick={() => router.push("/billing")} className="ks-btn-primary flex items-center gap-1.5">
               <Plus size={17} strokeWidth={2.5} /> New Bill
+            </button>
+            <button
+              onClick={() => window.open(whatsappLink("", dailyReportText(activeShop?.name || "Store", todaysBills, items)), "_blank")}
+              className="ks-btn-outline flex items-center gap-1.5 text-xs"
+            >
+              <Share2 size={13} /> Share report
             </button>
           </div>
         </div>
