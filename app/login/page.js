@@ -110,25 +110,8 @@ export default function LoginPage() {
               <p className="text-xs text-muted text-center mt-1">Enter your email and we&apos;ll send you a reset link.</p>
             </div>
           ) : mode !== "staff" ? (
-            <div className="flex rounded-full bg-[#F1F2F8] p-1 mb-5">
-              <button
-                type="button"
-                onClick={() => switchMode("signin")}
-                className={`flex-1 rounded-full py-2 text-sm font-semibold transition ${
-                  mode === "signin" ? "bg-white shadow text-ink" : "text-muted"
-                }`}
-              >
-                Sign in
-              </button>
-              <button
-                type="button"
-                onClick={() => switchMode("signup")}
-                className={`flex-1 rounded-full py-2 text-sm font-semibold transition ${
-                  mode === "signup" ? "bg-white shadow text-ink" : "text-muted"
-                }`}
-              >
-                Create account
-              </button>
+            <div className="mb-5">
+              <h2 className="ks-display font-bold text-center">{mode === "signin" ? "Sign in" : "Create account"}</h2>
             </div>
           ) : (
             <div className="mb-5">
