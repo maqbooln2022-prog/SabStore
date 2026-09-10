@@ -6,7 +6,7 @@ import { requireAdmin, logAdminAction } from "@/lib/supabaseAdmin";
 // day-close history, expenses, supplier links, staff), same as an
 // owner deleting their own shop from Store Settings.
 export async function POST(request) {
-  const { admin, error, status } = await requireAdmin(request);
+  const { caller, admin, error, status } = await requireAdmin(request);
   if (error) return NextResponse.json({ error }, { status });
 
   const { shopId } = await request.json();

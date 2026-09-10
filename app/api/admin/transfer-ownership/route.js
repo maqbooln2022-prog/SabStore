@@ -6,7 +6,7 @@ import { requireAdmin, logAdminAction } from "@/lib/supabaseAdmin";
 // goes through one atomic Postgres function instead of separate
 // updates — shops.owner_id and shop_members.role must move together.
 export async function POST(request) {
-  const { admin, error, status } = await requireAdmin(request);
+  const { caller, admin, error, status } = await requireAdmin(request);
   if (error) return NextResponse.json({ error }, { status });
 
   const { shopId, newOwnerUserId } = await request.json();

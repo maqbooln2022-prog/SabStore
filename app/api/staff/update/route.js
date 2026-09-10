@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, getRequestUser } from "@/lib/supabaseAdmin";
 import { MODULES } from "@/lib/modules";
+import { isRateLimited, requestIp } from "@/lib/rateLimit";
 
 // Updates a staff member's name/permissions, and optionally resets their
-// PIN. Only the shop's owner can call this.
+// PIN. Only the shop's owner can call this. Rate-limited because a newPin
+// reset here is effectively an auth-credential change — without a limit
+// a stolen owner session could be used to brute-force a low-entropy PIN.
 export async function POST(request) {
   const caller = await getRequestUser(request);
   if (!caller) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+
+  if (isRateLimited(`staff-update:${caller.id}`, { windowMs: 60_000, max: 10 })) {
+    return NextResponse.json({ error: "Too many attempts — wait a minute and try again" }, { status: 429 });
+  }
 
   const { memberId, name, permissions, newPin } = await request.json();
   if (!memberId) return NextResponse.json({ error: "memberId is required" }, { status: 400 });

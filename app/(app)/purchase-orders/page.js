@@ -102,7 +102,12 @@ function POPageInner() {
       const { error: itemsError } = await supabase
         .from("purchase_order_items")
         .insert(lines.map((l) => ({ ...l, po_id: po.id })));
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        // Don't leave a permanent empty draft PO behind if its items
+        // failed to save — clean up before surfacing the error.
+        await supabase.from("purchase_orders").delete().eq("id", po.id);
+        throw itemsError;
+      }
     }
     setShowCreate(false);
     showToast("Purchase order created");
@@ -110,31 +115,30 @@ function POPageInner() {
   }
 
   async function updateStatus(po, status) {
+    if (status === "received") {
+      // receive_purchase_order() does the stock updates, movement log
+      // entries, and status flip as one all-or-nothing transaction — so
+      // a failure partway (a deleted product, etc.) leaves the PO
+      // exactly as it was, not stuck "Received" with missing stock.
+      try {
+        await runQueued({
+          type: "rpc",
+          fn: "receive_purchase_order",
+          args: { p_po_id: po.id, p_shop_id: activeShopId },
+        });
+        showToast("Stock updated from purchase order");
+      } catch (err) {
+        showToast(err.message, "err");
+      }
+      load();
+      return;
+    }
+
     const { error } = await supabase
       .from("purchase_orders")
       .update({ status })
       .eq("id", po.id);
     if (error) { showToast(error.message, "err"); return; }
-    if (status === "received") {
-      // Auto-update stock for each item
-      for (const line of (po.items || [])) {
-        if (!line.shop_product_id) continue;
-        await runQueued({
-          type: "rpc",
-          fn: "adjust_stock",
-          args: {
-            p_shop_id: activeShopId,
-            p_shop_product_id: line.shop_product_id,
-            p_type: "in",
-            p_qty: line.qty,
-            p_reason: `PO received — ${po.supplier_name || "supplier"}`,
-            p_supplier: po.supplier_name || null,
-            p_expiry_date: null,
-          },
-        });
-      }
-      showToast("Stock updated from purchase order");
-    }
     load();
   }
 

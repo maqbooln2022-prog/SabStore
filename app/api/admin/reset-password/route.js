@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, logAdminAction } from "@/lib/supabaseAdmin";
+import { isRateLimited } from "@/lib/rateLimit";
 
 export async function POST(request) {
   const { caller, admin, error, status } = await requireAdmin(request);
   if (error) return NextResponse.json({ error }, { status });
+
+  if (isRateLimited(`admin-reset-password:${caller.id}`, { windowMs: 60_000, max: 10 })) {
+    return NextResponse.json({ error: "Too many attempts — wait a minute and try again" }, { status: 429 });
+  }
 
   const { userId, newPassword } = await request.json();
   if (!userId) return NextResponse.json({ error: "userId is required" }, { status: 400 });

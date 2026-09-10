@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin, logAdminAction } from "@/lib/supabaseAdmin";
 
 export async function POST(request) {
-  const { admin, error, status } = await requireAdmin(request);
+  const { caller, admin, error, status } = await requireAdmin(request);
   if (error) return NextResponse.json({ error }, { status });
 
   const { ownerId } = await request.json();

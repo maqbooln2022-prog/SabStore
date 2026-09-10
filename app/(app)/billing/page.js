@@ -277,19 +277,41 @@ function BillingPageInner() {
         date: new Date().toISOString(),
       };
 
-      const billResult = await runQueued({ type: "insert", table: "bills", rows: [bill] });
+      // Stock is validated/deducted BEFORE the bill row is written. If an
+      // item has gone out of stock (e.g. another sale beat this one to it),
+      // sell_items throws and we stop here — no bill is ever created, the
+      // cart stays intact, and the cashier sees exactly what to fix.
+      // Writing the bill first would leave an orphaned bill row with no
+      // matching stock deduction whenever sell_items rejected the sale.
       const stockResult = await runQueued({
         type: "rpc",
         fn: "sell_items",
         args: { p_shop_id: activeShopId, p_lines: billItems },
       });
+
+      // bill_no is a client-guessed number (bills.length + 1), so another
+      // device/tab can guess the same one before either syncs — a
+      // "bills_shop_id_bill_no_key" unique-violation (23505) means exactly
+      // that happened. Regenerate and retry once rather than failing a
+      // sale whose stock has *already* been deducted above.
+      let billResult;
+      try {
+        billResult = await runQueued({ type: "insert", table: "bills", rows: [bill] });
+      } catch (err) {
+        if (err?.code === "23505") {
+          bill.bill_no = `${billNo}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+          billResult = await runQueued({ type: "insert", table: "bills", rows: [bill] });
+        } else {
+          throw err;
+        }
+      }
       const offline = billResult.queued || stockResult.queued;
 
       if (billType === "credit") {
         await runQueued({
           type: "insert",
           table: "credits",
-          rows: [{ shop_id: activeShopId, phone: cleanPhone, name: customer.name || "Customer", amount: total, type: "charge", note: `Bill ${billNo}` }],
+          rows: [{ shop_id: activeShopId, phone: cleanPhone, name: customer.name || "Customer", amount: total, type: "charge", note: `Bill ${bill.bill_no}` }],
         });
       }
 

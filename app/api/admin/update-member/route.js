@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, logAdminAction } from "@/lib/supabaseAdmin";
 import { MODULES } from "@/lib/modules";
+import { isRateLimited } from "@/lib/rateLimit";
 
 // Admin-scoped version of app/api/staff/update — same shape, but usable
 // on any shop's member (owner or staff), not just by that shop's own
@@ -9,8 +10,12 @@ import { MODULES } from "@/lib/modules";
 // only exposes permission editing for staff rows, but the route doesn't
 // need to care either way.
 export async function POST(request) {
-  const { admin, error, status } = await requireAdmin(request);
+  const { caller, admin, error, status } = await requireAdmin(request);
   if (error) return NextResponse.json({ error }, { status });
+
+  if (isRateLimited(`admin-update-member:${caller.id}`, { windowMs: 60_000, max: 10 })) {
+    return NextResponse.json({ error: "Too many attempts — wait a minute and try again" }, { status: 429 });
+  }
 
   const { memberId, name, permissions, newPin } = await request.json();
   if (!memberId) return NextResponse.json({ error: "memberId is required" }, { status: 400 });
