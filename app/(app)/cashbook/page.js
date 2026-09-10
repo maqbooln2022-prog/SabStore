@@ -85,16 +85,22 @@ function CashbookPageInner() {
     return rows.sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [bills, draws, expenses, credits, movements, items]);
 
-  const cutoff = Date.now() - Number(range) * 24 * 60 * 60 * 1000;
-  const visible = entries.filter((e) => new Date(e.date).getTime() >= cutoff);
-
+  // Balance is a true running total computed over ALL history, not just
+  // the entries inside the selected date range — otherwise switching
+  // "7 days" → "30 days" changes where the running total starts from
+  // and every balance shown is wrong. The 7/30/90-day range only
+  // controls which rows are *displayed* and what the Cash in/out/Net
+  // summary cards total, same as before.
   let running = 0;
-  const withBalance = visible.map((e) => {
+  const entriesWithBalance = entries.map((e) => {
     running += e.type === "in" ? e.amount : -e.amount;
     return { ...e, balance: running };
   });
-  const totalIn = visible.filter((e) => e.type === "in").reduce((s, e) => s + e.amount, 0);
-  const totalOut = visible.filter((e) => e.type === "out").reduce((s, e) => s + e.amount, 0);
+
+  const cutoff = Date.now() - Number(range) * 24 * 60 * 60 * 1000;
+  const withBalance = entriesWithBalance.filter((e) => new Date(e.date).getTime() >= cutoff);
+  const totalIn = withBalance.filter((e) => e.type === "in").reduce((s, e) => s + e.amount, 0);
+  const totalOut = withBalance.filter((e) => e.type === "out").reduce((s, e) => s + e.amount, 0);
 
   if (loading) {
     return (
