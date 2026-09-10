@@ -9,12 +9,14 @@ import { createClient } from "@/lib/supabaseClient";
 export default function LoginPage() {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
-  const [mode, setMode] = useState("signin"); // "signin" | "signup" | "staff" | "forgot"
+  const [mode, setMode] = useState("signin"); // "signin" | "signup" | "staff" | "forgot" | "email-otp"
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [staffCode, setStaffCode] = useState("");
   const [pin, setPin] = useState("");
+  const [otpStep, setOtpStep] = useState("request"); // "request" | "verify"
+  const [otpCode, setOtpCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -34,6 +36,8 @@ export default function LoginPage() {
     setMode(next);
     setError("");
     setNotice("");
+    setOtpStep("request");
+    setOtpCode("");
   }
 
   async function handleSubmit(e) {
@@ -48,6 +52,25 @@ export default function LoginPage() {
       });
       if (error) setError(error.message);
       else setNotice("Password reset link sent! Check your email and follow the link to set a new password.");
+      setLoading(false);
+      return;
+    }
+
+    if (mode === "email-otp") {
+      if (otpStep === "request") {
+        // shouldCreateUser: false — this is a sign-in shortcut for an
+        // existing owner account, not a second way to register.
+        const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+        if (error) setError(error.message);
+        else {
+          setOtpStep("verify");
+          setNotice(`We sent a 6-digit code to ${email}. It's valid for a few minutes.`);
+        }
+      } else {
+        const { data, error } = await supabase.auth.verifyOtp({ email, token: otpCode, type: "email" });
+        if (error) setError("That code didn't work — check it and try again, or resend a new one.");
+        else if (data.session) router.replace("/dashboard");
+      }
       setLoading(false);
       return;
     }
@@ -109,6 +132,13 @@ export default function LoginPage() {
               <h2 className="ks-display font-bold text-center">Forgot password?</h2>
               <p className="text-xs text-muted text-center mt-1">Enter your email and we&apos;ll send you a reset link.</p>
             </div>
+          ) : mode === "email-otp" ? (
+            <div className="mb-5">
+              <h2 className="ks-display font-bold text-center">Sign in with a code</h2>
+              <p className="text-xs text-muted text-center mt-1">
+                {otpStep === "request" ? "We'll email you a 6-digit code — no password needed." : "Enter the code we just emailed you."}
+              </p>
+            </div>
           ) : mode !== "staff" ? (
             <div className="mb-5">
               <h2 className="ks-display font-bold text-center">{mode === "signin" ? "Sign in" : "Create account"}</h2>
@@ -150,6 +180,37 @@ export default function LoginPage() {
                   placeholder="owner@shop.com"
                 />
               </div>
+            ) : mode === "email-otp" ? (
+              otpStep === "request" ? (
+                <div>
+                  <label className="text-xs font-medium text-muted mb-1 block">Email</label>
+                  <input
+                    type="email"
+                    required
+                    autoFocus
+                    autoComplete="email"
+                    className="ks-input"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="owner@shop.com"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="text-xs font-medium text-muted mb-1 block">6-digit code</label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    inputMode="numeric"
+                    maxLength={6}
+                    className="ks-input ks-mono text-center tracking-widest"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                    placeholder="123456"
+                  />
+                </div>
+              )
             ) : mode !== "staff" ? (
               <>
                 <div>
@@ -226,20 +287,39 @@ export default function LoginPage() {
               </p>
             )}
 
-            {!notice && (
+            {(!notice || mode === "email-otp") && (
               <button
                 type="submit"
                 disabled={loading}
                 className="ks-btn-primary w-full flex items-center justify-center gap-2 mt-2"
               >
                 {loading && <Loader2 size={16} className="animate-spin" />}
-                {mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : mode === "forgot" ? "Send reset link" : "Sign in"}
+                {mode === "signin"
+                  ? "Sign in"
+                  : mode === "signup"
+                  ? "Create account"
+                  : mode === "forgot"
+                  ? "Send reset link"
+                  : mode === "email-otp"
+                  ? otpStep === "request"
+                    ? "Send code"
+                    : "Verify & sign in"
+                  : "Sign in"}
+              </button>
+            )}
+            {mode === "email-otp" && otpStep === "verify" && (
+              <button
+                type="button"
+                onClick={() => { setOtpStep("request"); setNotice(""); setOtpCode(""); }}
+                className="w-full text-center text-xs font-semibold text-brand"
+              >
+                Use a different email or resend code
               </button>
             )}
           </form>
         </div>
 
-        {mode === "forgot" ? (
+        {mode === "forgot" || mode === "email-otp" ? (
           <p className="text-center text-xs text-muted mt-4">
             <button type="button" onClick={() => switchMode("signin")} className="font-semibold text-brand">
               Back to sign in
@@ -253,6 +333,13 @@ export default function LoginPage() {
                 {mode === "signin" ? "Create an account" : "Sign in"}
               </button>
             </p>
+            {mode === "signin" && (
+              <p>
+                <button type="button" onClick={() => switchMode("email-otp")} className="font-semibold text-brand">
+                  Sign in with an email code instead
+                </button>
+              </p>
+            )}
             <p>
               Work at a shop?{" "}
               <button type="button" onClick={() => switchMode("staff")} className="font-semibold text-brand">
