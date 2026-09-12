@@ -7,7 +7,6 @@ import {
   Wallet,
   AlertTriangle,
   TrendingUp,
-  Plus,
   ArrowUpCircle,
   ArrowDownCircle,
   Users,
@@ -163,9 +162,6 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <button onClick={() => router.push("/billing")} className="ks-btn-primary flex items-center gap-1.5">
-              <Plus size={17} strokeWidth={2.5} /> New Bill
-            </button>
             <button
               onClick={() => window.open(whatsappLink("", dailyReportText(activeShop?.name || "Store", todaysBills, items)), "_blank")}
               className="ks-btn-outline flex items-center gap-1.5 text-xs"
