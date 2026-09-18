@@ -21,7 +21,16 @@ export default function QtyPickerModal({ item, onClose, onConfirm }) {
     <Modal title={item.name} onClose={onClose}>
       <div className="space-y-3.5">
         <p className="text-xs text-[#6B7280]">
-          Available: <span className="ks-mono font-semibold text-[#000000]">{item.stock} {item.unit}</span> · {rupee(item.price)} / {item.unit}
+          Available: <span className="ks-mono font-semibold text-[#000000]">{item.stock} {item.unit}</span> ·{" "}
+          {item.mrp > item.price && !item.originalPrice && (
+            <span className="line-through mr-1 opacity-60 ks-mono">{rupee(item.mrp)}</span>
+          )}
+          {rupee(item.price)} / {item.unit}
+          {item.mrp > item.price && !item.originalPrice && (
+            <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#E4F5F0", color: "#1F8A5F" }}>
+              {Math.round(((item.mrp - item.price) / item.mrp) * 100)}% OFF
+            </span>
+          )}
         </p>
 
         {smallerUnit && (

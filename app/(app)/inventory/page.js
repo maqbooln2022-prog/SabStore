@@ -2,17 +2,18 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, ArrowUpCircle, ArrowDownCircle, Star, Loader2, Layers, Barcode, ScanLine, BarChart2, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Upload } from "lucide-react";
+import { Search, Plus, ArrowUpCircle, ArrowDownCircle, Loader2, Layers, Barcode, ScanLine, BarChart2, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Upload, Pencil } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import ItemThumb from "@/components/ItemThumb";
 import CategoryChip from "@/components/CategoryChip";
 import AddItemModal from "@/components/AddItemModal";
 import AdjustStockModal from "@/components/AdjustStockModal";
+import EditPriceModal from "@/components/EditPriceModal";
 import BatchesModal from "@/components/BatchesModal";
 import BarcodeModal from "@/components/BarcodeModal";
 import ScanBillModal from "@/components/ScanBillModal";
 import BulkImportModal from "@/components/BulkImportModal";
-import { reorderSuggestion } from "@/lib/inventoryHelpers";
+import { reorderSuggestion, nextCode } from "@/lib/inventoryHelpers";
 import { rupee } from "@/lib/format";
 import { fetchShopItems, flattenShopProduct } from "@/lib/products";
 import ModuleGuard from "@/components/ModuleGuard";
@@ -35,6 +36,7 @@ function InventoryPageInner() {
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [adjustItem, setAdjustItem] = useState(null);
+  const [editPriceItem, setEditPriceItem] = useState(null);
   const [batchesItem, setBatchesItem] = useState(null);
   const [barcodeItem, setBarcodeItem] = useState(null);
   const [showScanBill, setShowScanBill] = useState(false);
@@ -85,7 +87,7 @@ function InventoryPageInner() {
   const topMargin = insightItems[0]?.marginPct || 1;
 
   async function addItem(newItem) {
-    const { code, price, cost_price, gst, stock, low_at, ...productFields } = newItem;
+    const { code, price, mrp, cost_price, gst, stock, low_at, ...productFields } = newItem;
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -98,7 +100,7 @@ function InventoryPageInner() {
 
     const { data: shopProduct, error: spError } = await supabase
       .from("shop_products")
-      .insert({ shop_id: activeShopId, product_id: product.id, code, price, cost_price, gst, stock, low_at })
+      .insert({ shop_id: activeShopId, product_id: product.id, code, price, mrp, cost_price, gst, stock, low_at })
       .select()
       .single();
     if (spError) throw spError;
@@ -109,19 +111,18 @@ function InventoryPageInner() {
     showToast(`${merged.name} added to inventory`);
   }
 
-  async function toggleQuick(item) {
+  async function savePrice(item, { price, mrp, cost_price }) {
     const { data, error } = await supabase
       .from("shop_products")
-      .update({ quick: !item.quick })
+      .update({ price, mrp, cost_price })
       .eq("id", item.id)
       .select("*, product:products(*)")
       .single();
-    if (error) {
-      showToast(error.message, "err");
-      return;
-    }
+    if (error) throw error;
     const merged = flattenShopProduct(data);
     setItems((prev) => prev.map((p) => (p.id === item.id ? merged : p)));
+    setEditPriceItem(null);
+    showToast(`${merged.name}'s price updated`);
   }
 
   async function logMovement(item, type, qty, reason, supplier, expiryDate) {
@@ -265,12 +266,10 @@ function InventoryPageInner() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left ks-mono text-[11px] uppercase tracking-wide text-[#6B7280] border-b border-[#E7E9F3]">
-              <th className="px-5 py-3 font-medium">Code</th>
               <th className="px-5 py-3 font-medium">Item</th>
               <th className="px-5 py-3 font-medium">Category</th>
               <th className="px-5 py-3 font-medium">Price / Margin</th>
               <th className="px-5 py-3 font-medium">Stock</th>
-              <th className="px-5 py-3 font-medium">Quick add</th>
               <th className="px-5 py-3 font-medium">Actions</th>
             </tr>
           </thead>
@@ -281,11 +280,6 @@ function InventoryPageInner() {
               const suggestion = reorderSuggestion(i, bills);
               return (
                 <tr key={i.id} className="border-b border-[#E7E9F3] last:border-0 hover:bg-[#F8F9FD]">
-                  <td className="px-5 py-3">
-                    <span className="ks-mono text-xs font-bold px-2 py-1 rounded-md" style={{ background: "#E7E9F3", color: "#6B7280" }}>
-                      {i.code}
-                    </span>
-                  </td>
                   <td className="px-5 py-3 font-semibold max-w-[220px]">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <ItemThumb item={i} size={30} className="shrink-0" />
@@ -296,6 +290,14 @@ function InventoryPageInner() {
                     <CategoryChip category={i.category} />
                   </td>
                   <td className="px-5 py-3 ks-mono">
+                    {i.mrp > i.price && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="line-through text-[11px]" style={{ color: "var(--text-secondary)" }}>{rupee(i.mrp)}</span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#E4F5F0", color: "#1F8A5F" }}>
+                          {Math.round(((i.mrp - i.price) / i.mrp) * 100)}% OFF
+                        </span>
+                      </div>
+                    )}
                     {rupee(i.price)}
                     {margin != null && <div className="text-[11px] text-[#4F46E5] font-semibold">+{rupee(margin)} margin</div>}
                   </td>
@@ -316,17 +318,15 @@ function InventoryPageInner() {
                     )}
                   </td>
                   <td className="px-5 py-3">
-                    <button
-                      onClick={() => toggleQuick(i)}
-                      className="w-8 h-8 rounded-full flex items-center justify-center"
-                      style={{ background: i.quick ? "#FCEEDA" : "#E7E9F3" }}
-                      title={i.quick ? "Remove from quick add" : "Pin to quick add"}
-                    >
-                      <Star size={15} fill={i.quick ? "#F2A93B" : "none"} color={i.quick ? "#F2A93B" : "#B0A996"} />
-                    </button>
-                  </td>
-                  <td className="px-5 py-3">
                     <div className="flex gap-1.5">
+                      <button
+                        onClick={() => setEditPriceItem(i)}
+                        title="Edit price / MRP"
+                        className="w-7 h-7 rounded-full flex items-center justify-center"
+                        style={{ background: "#E7E9F3", color: "#6B7280" }}
+                      >
+                        <Pencil size={13} />
+                      </button>
                       <button
                         onClick={() => setAdjustItem({ item: i, type: "in" })}
                         className="px-2.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1"
@@ -364,7 +364,7 @@ function InventoryPageInner() {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-[#6B7280] text-sm">
+                <td colSpan={5} className="px-5 py-10 text-center text-[#6B7280] text-sm">
                   No items match &quot;{query}&quot;.
                 </td>
               </tr>
@@ -394,6 +394,13 @@ function InventoryPageInner() {
         <BatchesModal item={batchesItem} supabase={supabase} activeShopId={activeShopId} onClose={() => setBatchesItem(null)} />
       )}
       {barcodeItem && <BarcodeModal item={barcodeItem} onClose={() => setBarcodeItem(null)} />}
+      {editPriceItem && (
+        <EditPriceModal
+          item={editPriceItem}
+          onClose={() => setEditPriceItem(null)}
+          onSave={(fields) => savePrice(editPriceItem, fields)}
+        />
+      )}
       {showScanBill && (
         <ScanBillModal
           items={items}

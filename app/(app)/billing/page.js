@@ -186,6 +186,7 @@ function BillingPageInner() {
                 code: item.code,
                 name: item.name,
                 price: item.price,
+                mrp: item.mrp || null,
                 originalPrice: item.originalPrice || null,
                 clearancePct: item.clearancePct || null,
                 unit: item.unit,
@@ -203,6 +204,7 @@ function BillingPageInner() {
           code: item.code,
           name: item.name,
           price: item.price,
+          mrp: item.mrp || null,
           originalPrice: item.originalPrice || null,
           clearancePct: item.clearancePct || null,
           unit: item.unit,
@@ -245,9 +247,9 @@ function BillingPageInner() {
     setGenerating(true);
     try {
       const billNo = `KS-${1000 + bills.length + 1}`;
-      const billItems = cart.map(({ shop_product_id, code, name, price, unit, gst, qty }) => {
+      const billItems = cart.map(({ shop_product_id, code, name, price, mrp, unit, gst, qty }) => {
         const inv = items.find((i) => i.id === shop_product_id);
-        return { shop_product_id, code, name, price, unit, gst, qty, cost_price: inv?.cost_price ?? null };
+        return { shop_product_id, code, name, price, mrp: mrp || null, unit, gst, qty, cost_price: inv?.cost_price ?? null };
       });
       // Built client-side (including the id) so a queued/offline bill can
       // be shown, printed, and sent immediately — it reconciles with the
@@ -338,6 +340,7 @@ function BillingPageInner() {
       code: item.code,
       name: item.name,
       price: item.price,
+      mrp: item.mrp || null,
       originalPrice: item.originalPrice || null,
       clearancePct: item.clearancePct || null,
       unit: item.unit,
@@ -500,19 +503,25 @@ function BillingPageInner() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="font-semibold text-sm truncate">{item.name}</span>
-                      {item.clearancePct && (
+                      {item.clearancePct ? (
                         <span className="ks-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "#C13F45", color: "#fff" }}>
                           −{item.clearancePct}%
                         </span>
-                      )}
+                      ) : item.mrp > item.price ? (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "#E4F5F0", color: "#1F8A5F" }}>
+                          {Math.round(((item.mrp - item.price) / item.mrp) * 100)}% OFF
+                        </span>
+                      ) : null}
                     </div>
                     <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{item.category}</p>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-bold text-sm" style={{ color: "#D97706" }}>
-                      {item.originalPrice && (
+                      {item.originalPrice ? (
                         <span className="line-through mr-1 font-normal opacity-60">{rupee(item.originalPrice)}</span>
-                      )}
+                      ) : item.mrp > item.price ? (
+                        <span className="line-through mr-1 font-normal opacity-60">{rupee(item.mrp)}</span>
+                      ) : null}
                       {rupee(item.price)}
                       <span className="font-normal text-[11px] ml-0.5">/{item.unit}</span>
                     </p>

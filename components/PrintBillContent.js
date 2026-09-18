@@ -35,6 +35,10 @@ export default function PrintBillContent({ bill, storeName, gstin }) {
   const { taxable, taxAmt } = taxBreakup(bill.items);
   const halfTax = Math.round((taxAmt / 2) * 100) / 100;
   const discount = bill.discount_amount || 0;
+  // MRP anchor savings — separate from the bill's own discount_amount
+  // (loyalty/manual/clearance), this is what the customer saved simply
+  // by buying here vs. paying printed MRP.
+  const mrpSavings = (bill.items || []).reduce((s, it) => (it.mrp > it.price ? s + (it.mrp - it.price) * it.qty : s), 0);
 
   return (
     <div style={{ width: "100%", maxWidth: "740px", margin: "0 auto", padding: "36px 40px", fontFamily: "'Inter', sans-serif", color: "#1A1D29", fontSize: "13px" }}>
@@ -87,7 +91,12 @@ export default function PrintBillContent({ bill, storeName, gstin }) {
               <td style={{ padding: "8px 6px", color: "#9CA3AF" }}>{idx + 1}</td>
               <td style={{ padding: "8px 6px", fontWeight: 500 }}>{it.name}</td>
               <td style={{ padding: "8px 6px", textAlign: "center", fontFamily: "'IBM Plex Mono', monospace" }}>{it.qty}{it.unit}</td>
-              <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: "'IBM Plex Mono', monospace" }}>{rupee(it.price)}</td>
+              <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: "'IBM Plex Mono', monospace" }}>
+                {it.mrp > it.price && (
+                  <span style={{ textDecoration: "line-through", opacity: 0.5, marginRight: 4 }}>{rupee(it.mrp)}</span>
+                )}
+                {rupee(it.price)}
+              </td>
               <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>{rupee(it.qty * it.price)}</td>
             </tr>
           ))}
@@ -117,6 +126,12 @@ export default function PrintBillContent({ bill, storeName, gstin }) {
             <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: "#C13F45" }}>
               <span>Discount</span>
               <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>−{rupee(discount)}</span>
+            </div>
+          )}
+          {mrpSavings > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: "#1F8A5F", fontWeight: 600 }}>
+              <span>You saved (vs MRP)</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{rupee(mrpSavings)}</span>
             </div>
           )}
           <div

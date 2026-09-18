@@ -13,6 +13,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
     category: "",
     unit: "pcs",
     price: "",
+    mrp: "",
     cost_price: "",
     gst: "",
     stock: "1",
@@ -130,6 +131,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
         category: form.category.trim() || "General",
         unit: form.unit,
         price: Number(form.price),
+        mrp: form.mrp !== "" ? Number(form.mrp) : null,
         cost_price: form.cost_price !== "" ? Number(form.cost_price) : null,
         gst: form.gst !== "" ? Number(form.gst) : null,
         stock: Number(form.stock),
@@ -164,16 +166,27 @@ export default function AddItemModal({ items, onClose, onAdd }) {
           </div>
 
           {/* Price — auto-focused */}
-          <Field label="Selling price (₹)">
-            <input
-              ref={priceRef}
-              type="number"
-              className="ks-input text-lg font-semibold"
-              placeholder="0"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Selling price (₹)">
+              <input
+                ref={priceRef}
+                type="number"
+                className="ks-input text-lg font-semibold"
+                placeholder="0"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
+              />
+            </Field>
+            <Field label="MRP (₹, optional)">
+              <input
+                type="number"
+                className="ks-input"
+                placeholder="Shows as a discount"
+                value={form.mrp}
+                onChange={(e) => setForm({ ...form, mrp: e.target.value })}
+              />
+            </Field>
+          </div>
 
           {/* Stock — defaults to 1 */}
           <Field label="Opening stock">
@@ -343,6 +356,15 @@ export default function AddItemModal({ items, onClose, onAdd }) {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
+          <Field label="MRP (₹, optional)">
+            <input
+              type="number"
+              className="ks-input"
+              placeholder="Shown struck through as a discount"
+              value={form.mrp}
+              onChange={(e) => setForm({ ...form, mrp: e.target.value })}
+            />
+          </Field>
           <Field label="Purchase price (₹, optional)">
             <input
               type="number"
@@ -351,6 +373,9 @@ export default function AddItemModal({ items, onClose, onAdd }) {
               onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
             />
           </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
           <Field label="GST % (optional)">
             <select className="ks-input" value={form.gst} onChange={(e) => setForm({ ...form, gst: e.target.value })}>
               <option value="">None</option>
@@ -359,16 +384,14 @@ export default function AddItemModal({ items, onClose, onAdd }) {
               ))}
             </select>
           </Field>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
           <Field label="Opening stock">
             <input type="number" className="ks-input" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
           </Field>
-          <Field label="Low stock alert at">
-            <input type="number" className="ks-input" value={form.low_at} onChange={(e) => setForm({ ...form, low_at: e.target.value })} />
-          </Field>
         </div>
+
+        <Field label="Low stock alert at">
+          <input type="number" className="ks-input" value={form.low_at} onChange={(e) => setForm({ ...form, low_at: e.target.value })} />
+        </Field>
 
         {error && (
           <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
