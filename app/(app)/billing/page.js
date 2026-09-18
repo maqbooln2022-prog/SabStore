@@ -6,8 +6,6 @@ import {
   Plus,
   Minus,
   Mic,
-  Languages,
-  Star,
   Printer,
   MessageCircle,
   CheckCircle2,
@@ -54,7 +52,6 @@ function BillingPageInner() {
   const [loyaltyDiscount, setLoyaltyDiscount] = useState(false);
   const [manualDiscount, setManualDiscount] = useState({ type: "pct", value: "" });
   const [lastBill, setLastBill] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);
   const [scannerActive, setScannerActive] = useState(false);
   const [activeCategory, setActiveCategory] = useState(null);
   const [pickerItem, setPickerItem] = useState(null);
@@ -116,12 +113,7 @@ function BillingPageInner() {
     [items, discountMap]
   );
 
-  const quickItems = pricedItems.filter((i) => i.quick);
   const categories = [...new Set(pricedItems.map((i) => i.category))];
-  const categoryItems = activeCategory ? pricedItems.filter((i) => i.category === activeCategory) : [];
-  const results = query
-    ? pricedItems.filter((i) => i.name.toLowerCase().includes(query.toLowerCase()) || i.code === query.trim()).slice(0, 6)
-    : [];
 
   const cleanPhone = (customer.phone || "").replace(/\D/g, "");
   const previousVisits = cleanPhone ? bills.filter((b) => (b.customer_phone || "").replace(/\D/g, "") === cleanPhone).length : 0;

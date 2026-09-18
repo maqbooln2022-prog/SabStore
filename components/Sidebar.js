@@ -96,7 +96,7 @@ export default function Sidebar({ onOpenSettings, onNavigate }) {
         key={item.href}
         href={item.href}
         onClick={() => onNavigate?.()}
-        className={`ks-sidebar-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold ${active ? "active" : ""}`}
+        className={`ks-sidebar-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold ${active ? "active" : ""}`}
       >
         <Icon size={17} />
         {item.label}
@@ -118,8 +118,8 @@ export default function Sidebar({ onOpenSettings, onNavigate }) {
               <ShopTypeIcon type={activeShop.type} size={17} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs italic font-bold truncate ks-sidebar-text-strong">{activeShop.name}</p>
-              <p className="text-[10px] italic font-medium ks-sidebar-text">{shopTypeInfo(activeShop.type).label}</p>
+              <p className="text-xs font-bold truncate ks-sidebar-text-strong">{activeShop.name}</p>
+              <p className="text-[10px] font-medium ks-sidebar-text">{shopTypeInfo(activeShop.type).label}</p>
             </div>
           </div>
         </div>
@@ -128,7 +128,7 @@ export default function Sidebar({ onOpenSettings, onNavigate }) {
           <span className="ks-sidebar-chip w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ks-sidebar-text-strong shrink-0">
             {initials(user)}
           </span>
-          <p className="text-[11px] italic ks-sidebar-muted">
+          <p className="text-[11px] ks-sidebar-muted">
             {greeting()}
             {displayName(user) ? `, ${displayName(user)}` : ""} 👋
           </p>
@@ -142,7 +142,7 @@ export default function Sidebar({ onOpenSettings, onNavigate }) {
           <>
             <button
               onClick={() => setMoreOpen((v) => !v)}
-              className={`ks-sidebar-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold ${
+              className={`ks-sidebar-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold ${
                 moreActive && !moreOpen ? "active" : ""
               }`}
             >
@@ -161,18 +161,18 @@ export default function Sidebar({ onOpenSettings, onNavigate }) {
             <SyncStatusBadge pendingCount={pendingCount} />
           </div>
         )}
-        <div className="ks-mono text-[10px] italic ks-sidebar-muted px-3.5 pb-2">{todayStr()}</div>
+        <div className="ks-mono text-[10px] ks-sidebar-muted px-3.5 pb-2">{todayStr()}</div>
         {isOwner && (
           <button
             onClick={onOpenSettings}
-            className="ks-sidebar-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold"
+            className="ks-sidebar-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold"
           >
             <Settings size={17} /> Store settings
           </button>
         )}
         <button
           onClick={handleSignOut}
-          className="ks-sidebar-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs italic font-semibold"
+          className="ks-sidebar-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold"
         >
           <LogOut size={17} /> Sign out
         </button>
