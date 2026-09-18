@@ -11,9 +11,6 @@ import {
   CheckCircle2,
   Loader2,
   ScanLine,
-  AlertTriangle,
-  Tag,
-  History,
 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import ItemThumb from "@/components/ItemThumb";
@@ -405,8 +402,6 @@ function BillingPageInner() {
     );
   }
 
-  const lowStockItems = pricedItems.filter((i) => i.low_at > 0 && i.stock <= i.low_at);
-
   // Items shown in the product grid — all items, filtered by search or category
   const displayItems = query
     ? pricedItems.filter((i) => i.name.toLowerCase().includes(query.toLowerCase()) || i.code === query.trim())
@@ -489,18 +484,6 @@ function BillingPageInner() {
               <Mic size={16} />
             </button>
           </div>
-
-          {/* Low stock alert */}
-          {lowStockItems.length > 0 && (
-            <div className="ks-card p-2.5 mb-3 flex items-center gap-2 flex-wrap" style={{ borderLeft: "3px solid #C13F45" }}>
-              <AlertTriangle size={13} style={{ color: "#C13F45" }} className="shrink-0" />
-              <span className="text-xs font-semibold" style={{ color: "#C13F45" }}>Low stock:</span>
-              <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                {lowStockItems.slice(0, 4).map((i) => `${i.name} (${i.stock})`).join(" · ")}
-                {lowStockItems.length > 4 && ` +${lowStockItems.length - 4} more`}
-              </span>
-            </div>
-          )}
 
           {/* Product grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
