@@ -14,6 +14,7 @@ import {
   CalendarClock,
   Tag,
   Share2,
+  Activity,
 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import StatCard from "@/components/StatCard";
@@ -150,26 +151,27 @@ export default function DashboardPage() {
       <div className="ks-hero p-6 sm:p-7 mb-4">
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
-            <p className="text-sm mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>
+            <p className="text-sm mb-3" style={{ color: "rgba(255,255,255,0.75)" }}>
               {greeting()}{displayName(user) ? `, ${displayName(user)}` : ""} 👋
             </p>
-            <div className="ks-hero-chip inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full mb-3">
-              <TrendingUp size={13} /> Today&apos;s sales
+            <p className="ks-eyebrow mb-2" style={{ color: "var(--gold)" }}>Today&apos;s Sales</p>
+            <div className="ks-hero-figure text-4xl sm:text-5xl">
+              <sup className="text-xl sm:text-2xl">₹</sup>{rupee(todaysSales).slice(1)}
             </div>
-            <div className="ks-display text-4xl sm:text-5xl font-extrabold">{rupee(todaysSales)}</div>
-            <p className="text-sm mt-1.5" style={{ color: "rgba(255,255,255,0.8)" }}>
+            <p className="text-sm mt-2" style={{ color: "rgba(255,255,255,0.75)" }}>
               {todaysBills.length} bill{todaysBills.length === 1 ? "" : "s"} · profit ~{rupee(todaysProfit)} today
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
             <button
               onClick={() => window.open(whatsappLink("", dailyReportText(activeShop?.name || "Store", todaysBills, items)), "_blank")}
-              className="ks-btn-outline flex items-center gap-1.5 text-xs"
+              className="ks-hero-btn flex items-center gap-1.5 text-xs px-3.5 py-2"
             >
               <Share2 size={13} /> Share report
             </button>
           </div>
         </div>
+        <div className="ks-hero-rule mt-5" />
       </div>
 
       {expiringWithNames.length > 0 && (
@@ -209,36 +211,36 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5">
         <StatCard
-          icon={<Package size={18} />}
-          iconBg="linear-gradient(135deg,#4F46E5,#818CF8)"
+          icon={<Package size={16} />}
+          bar="var(--accent)" tintBg="var(--accent-soft-bg)" tintFg="var(--accent)"
           label="Items in stock"
           value={items.length}
           onClick={() => setDetail("items")}
         />
         <StatCard
-          icon={<Wallet size={18} />}
-          iconBg="linear-gradient(135deg,#4B4FC1,#7A7DE0)"
+          icon={<Wallet size={16} />}
+          bar="#1F8A5F" tintBg="rgba(31,138,95,0.10)" tintFg="#1F8A5F"
           label="Stock value"
           value={rupee(stockValue)}
           onClick={() => setDetail("value")}
         />
         <StatCard
-          icon={<AlertTriangle size={18} />}
-          iconBg="linear-gradient(135deg,#E5484D,#F2828A)"
+          icon={<AlertTriangle size={16} />}
+          bar="#C13F45" tintBg="rgba(193,63,69,0.10)" tintFg="#C13F45"
           label="Low stock"
           value={lowStockCount}
           onClick={() => setDetail("low")}
         />
         <StatCard
-          icon={<TrendingUp size={18} />}
-          iconBg="linear-gradient(135deg,#F2A93B,#F2C56B)"
+          icon={<TrendingUp size={16} />}
+          bar="var(--gold)" tintBg="var(--gold-soft)" tintFg="var(--gold)"
           label="Today's profit"
           value={rupee(todaysProfit)}
           onClick={() => setDetail("profit")}
         />
         <StatCard
-          icon={<Wallet size={18} />}
-          iconBg="linear-gradient(135deg,#B5399C,#D97BC6)"
+          icon={<Wallet size={16} />}
+          bar="#B5720B" tintBg="rgba(181,114,11,0.10)" tintFg="#B5720B"
           label="Outstanding udhaar"
           value={rupee(outstandingCredit)}
           onClick={() => router.push("/credit")}
@@ -254,7 +256,7 @@ export default function DashboardPage() {
           </div>
           <MiniBarChart
             data={last7Days}
-            color="#4F46E5"
+            color="#5B2CDB"
             formatValue={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
           />
         </div>
@@ -290,9 +292,12 @@ export default function DashboardPage() {
       )}
 
       <div className="grid md:grid-cols-3 gap-4 mt-5">
-        <div className="ks-card overflow-hidden">
+        <div className="ks-card ks-panel-wash overflow-hidden" style={{ "--wash": "rgba(193,63,69,0.06)" }}>
           <div className="px-5 py-4 border-b border-[#E7E9F3] flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="ks-tint-icon" style={{ "--tint-bg": "rgba(193,63,69,0.10)", "--tint-fg": "#C13F45" }}>
+                <AlertTriangle size={15} />
+              </div>
               <h2 className="ks-display font-bold">Stock alerts</h2>
               {lowItems.length > 0 && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#FDEAEA", color: "#C13F45" }}>
@@ -304,7 +309,7 @@ export default function DashboardPage() {
               <button
                 onClick={() => router.push("/inventory")}
                 className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                style={{ background: "#E7E9F3", color: "#4F46E5" }}
+                style={{ background: "var(--accent-soft-bg)", color: "var(--accent)" }}
               >
                 View all
               </button>
@@ -336,7 +341,7 @@ export default function DashboardPage() {
                     <button
                       onClick={() => router.push("/inventory")}
                       className="text-[11px] font-bold px-2 py-1 rounded-lg"
-                      style={{ background: "#EEF0FB", color: "#4F46E5" }}
+                      style={{ background: "var(--accent-soft-bg)", color: "var(--accent)" }}
                     >
                       + Stock
                     </button>
@@ -347,8 +352,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="ks-card">
-          <div className="px-5 py-4 border-b border-[#E7E9F3]">
+        <div className="ks-card ks-panel-wash" style={{ "--wash": "var(--accent-soft-bg)" }}>
+          <div className="px-5 py-4 border-b border-[#E7E9F3] flex items-center gap-2.5">
+            <div className="ks-tint-icon" style={{ "--tint-bg": "var(--accent-soft-bg)", "--tint-fg": "var(--accent)" }}>
+              <Activity size={15} />
+            </div>
             <h2 className="ks-display font-bold">Recent stock movement</h2>
           </div>
           <div className="p-5 space-y-3 max-h-72 overflow-y-auto ks-scroll">
@@ -357,7 +365,7 @@ export default function DashboardPage() {
               <div key={m.id} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
                   {m.type === "in" ? (
-                    <ArrowUpCircle size={16} className="text-[#4F46E5]" />
+                    <ArrowUpCircle size={16} style={{ color: "var(--accent)" }} />
                   ) : (
                     <ArrowDownCircle size={16} className="text-[#C13F45]" />
                   )}
@@ -366,7 +374,7 @@ export default function DashboardPage() {
                     <span className="text-[#6B7280] ks-mono text-xs ml-2">{m.reason}</span>
                   </div>
                 </div>
-                <span className={`ks-mono font-semibold ${m.type === "in" ? "text-[#4F46E5]" : "text-[#C13F45]"}`}>
+                <span className="ks-mono font-semibold" style={{ color: m.type === "in" ? "var(--accent)" : "#C13F45" }}>
                   {m.type === "in" ? "+" : "−"}
                   {m.qty}
                 </span>
@@ -375,9 +383,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="ks-card">
-          <div className="px-5 py-4 border-b border-[#E7E9F3] flex items-center gap-2">
-            <Users size={16} className="text-[#6B7280]" />
+        <div className="ks-card ks-panel-wash" style={{ "--wash": "var(--gold-soft)" }}>
+          <div className="px-5 py-4 border-b border-[#E7E9F3] flex items-center gap-2.5">
+            <div className="ks-tint-icon" style={{ "--tint-bg": "var(--gold-soft)", "--tint-fg": "var(--gold)" }}>
+              <Users size={15} />
+            </div>
             <h2 className="ks-display font-bold">Top customers</h2>
           </div>
           <div className="p-5 space-y-1 max-h-72 overflow-y-auto ks-scroll">
@@ -389,10 +399,7 @@ export default function DashboardPage() {
                 className="w-full flex items-center justify-between text-sm py-1.5 -mx-1 px-1 rounded-lg hover:bg-[#F8F9FD] text-left"
               >
                 <div className="flex items-center gap-2">
-                  <span
-                    className="ks-mono text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center"
-                    style={{ background: "#E7E9F3", color: "#6B7280" }}
-                  >
+                  <span className={`ks-medal ${i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "plain"}`}>
                     {i + 1}
                   </span>
                   <div>

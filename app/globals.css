@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap");
 
 /* =========================================================
    Design tokens — content surfaces modeled on real Indian
@@ -20,6 +20,7 @@
   --font-body: "Inter", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
   --font-sidebar: "Plus Jakarta Sans", sans-serif;
+  --font-serif: "Fraunces", serif;
 
   --bg-page: #F5F6F8;
   --bg-page-glow: none;
@@ -30,11 +31,21 @@
   --border: #E5E7EB;
   --border-strong: #D1D5DB;
 
-  --accent: #2A4CDB;
-  --accent-hover: #3A5CF0;
+  --accent: #5B2CDB;
+  --accent-hover: #6B3FE8;
   --accent-contrast: #FFFFFF;
-  --accent-soft-bg: rgba(42, 76, 219, 0.08);
-  --accent-soft-text: #2A4CDB;
+  --accent-soft-bg: rgba(91, 44, 219, 0.08);
+  --accent-soft-text: #5B2CDB;
+
+  /* Premium brand register — constant across all three themes (like the
+     sidebar always has), not swapped per light/dark/warm. Gold is spent
+     sparingly: the hero hairline, profit figures, and rank #1. */
+  --gold: #B8902E;
+  --gold-soft: rgba(184, 144, 46, 0.12);
+  --gold-line: rgba(184, 144, 46, 0.45);
+  --hero-1: #1B1030;
+  --hero-2: #3B1F87;
+  --hero-glow: rgba(184, 144, 46, 0.14);
 
   --radius-card: 12px;
   --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
@@ -61,11 +72,11 @@
   --border: #232733;
   --border-strong: #2E3341;
 
-  --accent: #5B7CFA;
-  --accent-hover: #6D8CFF;
+  --accent: #9B7CF0;
+  --accent-hover: #AC8FFA;
   --accent-contrast: #FFFFFF;
-  --accent-soft-bg: rgba(91, 124, 250, 0.16);
-  --accent-soft-text: #B7C6FF;
+  --accent-soft-bg: rgba(155, 124, 240, 0.16);
+  --accent-soft-text: #C6B4FA;
 
   --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.02) inset, 0 1px 3px rgba(0, 0, 0, 0.4);
 
@@ -181,16 +192,67 @@ body {
 .ks-qtybtn:hover { background: var(--accent-soft-bg); }
 .ks-qtybtn:active { transform: scale(.9); }
 
-/* A dense info card, not a decorative gradient banner — big number,
-   small accent chip, plain surface. */
+/* The one dark, rich surface in an otherwise light app — a deliberate
+   material shift, not just "purple card #2". Radial glow + a fine gold
+   hairline give it weight without turning it into a gradient banner. */
 .ks-hero {
-  background: linear-gradient(135deg, #7B2FBE, #BC00FF, #6A00E0);
+  background: radial-gradient(120% 140% at 12% 0%, var(--hero-2) 0%, var(--hero-1) 62%);
   border: none;
-  border-radius: var(--radius-card);
+  border-radius: 18px;
   color: #fff;
-  box-shadow: 0 4px 24px rgba(188, 0, 255, 0.35);
+  box-shadow: 0 12px 32px rgba(27, 16, 48, 0.35);
+  position: relative;
+  overflow: hidden;
 }
+.ks-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(closest-side, var(--hero-glow), transparent 70%);
+  pointer-events: none;
+}
+.ks-hero > * { position: relative; }
 .ks-hero-chip { background: rgba(255,255,255,0.18); color: #fff; }
+.ks-hero-rule { height: 1px; background: linear-gradient(90deg, var(--gold), transparent 75%); opacity: 0.6; }
+.ks-hero-btn {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 10px;
+  font-weight: 600;
+  transition: background .15s;
+}
+.ks-hero-btn:hover { background: rgba(255,255,255,0.14); }
+.ks-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase; }
+.ks-hero-figure { font-family: var(--font-serif); font-weight: 500; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; line-height: 1; }
+.ks-hero-figure sup { font-weight: 400; opacity: 0.65; margin-right: 1px; }
+
+/* Left-accent stat tiles + panel headers with a tinted icon chip and a
+   faint color wash — set --tint-bg/--tint-fg/--bar per instance inline. */
+.ks-tile { position: relative; overflow: hidden; }
+.ks-tile::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--bar, var(--accent)); }
+.ks-tint-icon {
+  width: 30px; height: 30px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--tint-bg, var(--accent-soft-bg));
+  color: var(--tint-fg, var(--accent));
+  flex-shrink: 0;
+}
+.ks-panel-wash { position: relative; }
+.ks-panel-wash::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 72px;
+  background: linear-gradient(180deg, var(--wash, transparent), transparent);
+  pointer-events: none;
+}
+.ks-medal {
+  width: 22px; height: 22px; border-radius: 999px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; color: #fff;
+}
+.ks-medal.gold { background: linear-gradient(155deg, #E8C468, var(--gold)); }
+.ks-medal.silver { background: linear-gradient(155deg, #E4E4E7, #A1A1AA); }
+.ks-medal.bronze { background: linear-gradient(155deg, #D9A066, #9C5A2E); }
+.ks-medal.plain { background: var(--bg-surface-alt); color: var(--text-secondary); }
 
 @keyframes ks-pop { 0% { transform: scale(0.85); opacity: 0; } 60% { transform: scale(1.04); opacity:1;} 100% { transform: scale(1);} }
 @keyframes ks-fade-up { from { opacity:0; transform: translateY(8px);} to { opacity:1; transform:none;} }
@@ -199,7 +261,8 @@ body {
 .ks-fade-up { animation: ks-fade-up .35s ease-out; }
 .ks-pulse { animation: ks-pulse-dot 1.6s ease-in-out infinite; }
 
-.ks-sidebar { background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border); font-family: var(--font-sidebar); }
+.ks-sidebar { background: linear-gradient(165deg, var(--hero-2), var(--hero-1)); border-right: 1px solid var(--sidebar-border); font-family: var(--font-sidebar); }
+.ks-sidebar-gold-rule { height: 1px; background: linear-gradient(90deg, transparent, var(--gold-line), transparent); }
 .ks-sidebar-chip { background: var(--sidebar-chip-bg); border: 1px solid var(--sidebar-border); }
 .ks-sidebar-text { color: var(--sidebar-text); }
 .ks-sidebar-text-strong { color: var(--sidebar-text-strong); }
