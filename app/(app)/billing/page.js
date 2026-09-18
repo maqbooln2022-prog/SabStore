@@ -402,12 +402,14 @@ function BillingPageInner() {
     );
   }
 
-  // Items shown in the product grid — all items, filtered by search or category
+  // Search or category driven — no permanent catalog browsing. Nothing
+  // shows until the cashier searches, scans, or picks a category.
   const displayItems = query
     ? pricedItems.filter((i) => i.name.toLowerCase().includes(query.toLowerCase()) || i.code === query.trim())
     : activeCategory
     ? pricedItems.filter((i) => i.category === activeCategory)
-    : pricedItems;
+    : [];
+  const browsing = query.trim().length > 0 || !!activeCategory;
 
   // GST extracted from cart (prices are GST-inclusive)
   const cartGst = cart.reduce((s, c) => {
@@ -444,7 +446,7 @@ function BillingPageInner() {
       </div>
 
       <div className="ks-billing-grid">
-        {/* ── Left: product grid ── */}
+        {/* ── Left: search / scan / voice to find an item ── */}
         <div>
           {/* Search + category + voice */}
           <div className="flex gap-2 mb-3">
@@ -485,40 +487,52 @@ function BillingPageInner() {
             </button>
           </div>
 
-          {/* Product grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {displayItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => item.stock > 0 && setPickerItem(item)}
-                disabled={item.stock <= 0}
-                className="ks-card p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-default disabled:hover:translate-y-0 disabled:hover:shadow-none"
-              >
-                {item.clearancePct && (
-                  <span className="ks-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full mb-1.5 inline-block" style={{ background: "#C13F45", color: "#fff" }}>
-                    −{item.clearancePct}%
-                  </span>
-                )}
-                <p className="font-bold text-sm leading-tight line-clamp-2 mb-0.5">{item.name}</p>
-                <p className="text-[11px] mb-2" style={{ color: "var(--text-secondary)" }}>{item.category}</p>
-                <p className="font-bold text-sm" style={{ color: "#D97706" }}>
-                  {item.originalPrice && (
-                    <span className="line-through mr-1 font-normal opacity-60">{rupee(item.originalPrice)}</span>
-                  )}
-                  {rupee(item.price)}
-                  <span className="font-normal text-[11px] ml-0.5">/{item.unit}</span>
-                </p>
-                <p className="text-[11px] mt-1" style={{ color: "var(--text-secondary)" }}>
-                  {item.stock > 0 ? `${item.stock} in stock` : "Out of stock"}
-                </p>
-              </button>
-            ))}
-            {displayItems.length === 0 && (
-              <div className="col-span-3 py-12 text-center text-sm" style={{ color: "var(--text-secondary)" }}>
-                No products found
-              </div>
-            )}
-          </div>
+          {/* Search / category results — a list, not a browsable catalog */}
+          {browsing ? (
+            <div className="ks-card divide-y divide-[#F1F2F5] overflow-hidden">
+              {displayItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => item.stock > 0 && setPickerItem(item)}
+                  disabled={item.stock <= 0}
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[#F8F9FD] disabled:opacity-50 disabled:cursor-default disabled:hover:bg-transparent"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-sm truncate">{item.name}</span>
+                      {item.clearancePct && (
+                        <span className="ks-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "#C13F45", color: "#fff" }}>
+                          −{item.clearancePct}%
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{item.category}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-bold text-sm" style={{ color: "#D97706" }}>
+                      {item.originalPrice && (
+                        <span className="line-through mr-1 font-normal opacity-60">{rupee(item.originalPrice)}</span>
+                      )}
+                      {rupee(item.price)}
+                      <span className="font-normal text-[11px] ml-0.5">/{item.unit}</span>
+                    </p>
+                    <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
+                      {item.stock > 0 ? `${item.stock} in stock` : "Out of stock"}
+                    </p>
+                  </div>
+                </button>
+              ))}
+              {displayItems.length === 0 && (
+                <div className="py-10 text-center text-sm" style={{ color: "var(--text-secondary)" }}>
+                  No products found
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="ks-card py-14 text-center text-sm" style={{ color: "var(--text-secondary)" }}>
+              Search a product, scan a barcode, or pick a category to add it to the bill.
+            </div>
+          )}
         </div>
 
         {/* ── Right: current bill panel ── */}
