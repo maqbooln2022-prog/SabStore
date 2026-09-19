@@ -20,6 +20,7 @@ import {
   MoreHorizontal,
   ChevronRight,
   ClipboardList,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import ShopTypeIcon from "@/components/ShopTypeIcon";
@@ -38,12 +39,18 @@ const NAV_ITEMS = [
   { href: "/cashbook", key: "cashbook", label: "Cashbook", icon: BookOpen },
   { href: "/suppliers", key: "suppliers", label: "Suppliers", icon: Truck },
   { href: "/purchase-orders", key: "purchase_orders", label: "Purchase orders", icon: ClipboardList },
+  // Gated on the same "inventory" permission as the main Inventory page —
+  // batches (FIFO/expiry) and barcode printing are inventory-adjacent,
+  // not a separate toggleable module.
+  { href: "/inventory/config", key: "inventory", label: "Config", icon: SlidersHorizontal },
 ];
 
 // These four stay one tap away; everything else — including the
 // owner-only Staff/Clearance offers pages below — folds into "More" so
-// the nav doesn't force scrolling on a phone-sized drawer.
-const TOP_LEVEL_KEYS = ["dashboard", "billing", "inventory", "history"];
+// the nav doesn't force scrolling on a phone-sized drawer. Matched by
+// href, not permission key — Config shares the "inventory" key with
+// the main Inventory page but must still land in "More".
+const TOP_LEVEL_HREFS = ["/dashboard", "/billing", "/inventory", "/history"];
 
 const todayStr = () => new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -79,9 +86,9 @@ export default function Sidebar({ onOpenSettings, onNavigate }) {
 
   const enabledModules = activeShop.enabled_modules || NAV_ITEMS.map((i) => i.key);
   const visibleNav = NAV_ITEMS.filter((item) => enabledModules.includes(item.key) && hasPermission(item.key));
-  const topNav = visibleNav.filter((item) => TOP_LEVEL_KEYS.includes(item.key));
+  const topNav = visibleNav.filter((item) => TOP_LEVEL_HREFS.includes(item.href));
   const moreNav = [
-    ...visibleNav.filter((item) => !TOP_LEVEL_KEYS.includes(item.key)),
+    ...visibleNav.filter((item) => !TOP_LEVEL_HREFS.includes(item.href)),
     ...(isOwner && enabledModules.includes("staff") ? [{ href: "/staff", label: "Staff", icon: Users }] : []),
     ...(isOwner && enabledModules.includes("clearance") ? [{ href: "/clearance", label: "Clearance offers", icon: Tag }] : []),
   ];

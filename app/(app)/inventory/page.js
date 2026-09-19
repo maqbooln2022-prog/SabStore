@@ -2,15 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, ArrowUpCircle, ArrowDownCircle, Loader2, Layers, Barcode, ScanLine, BarChart2, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Upload, Pencil } from "lucide-react";
+import { Search, Plus, ArrowUpCircle, ArrowDownCircle, Loader2, ScanLine, BarChart2, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Upload, Pencil } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
-import ItemThumb from "@/components/ItemThumb";
 import CategoryChip from "@/components/CategoryChip";
 import AddItemModal from "@/components/AddItemModal";
 import AdjustStockModal from "@/components/AdjustStockModal";
 import EditPriceModal from "@/components/EditPriceModal";
-import BatchesModal from "@/components/BatchesModal";
-import BarcodeModal from "@/components/BarcodeModal";
 import ScanBillModal from "@/components/ScanBillModal";
 import BulkImportModal from "@/components/BulkImportModal";
 import { nextCode } from "@/lib/inventoryHelpers";
@@ -36,8 +33,6 @@ function InventoryPageInner() {
   const [showAdd, setShowAdd] = useState(false);
   const [adjustItem, setAdjustItem] = useState(null);
   const [editPriceItem, setEditPriceItem] = useState(null);
-  const [batchesItem, setBatchesItem] = useState(null);
-  const [barcodeItem, setBarcodeItem] = useState(null);
   const [showScanBill, setShowScanBill] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
@@ -282,10 +277,7 @@ function InventoryPageInner() {
               return (
                 <tr key={i.id} className="border-b border-[#E7E9F3] last:border-0 hover:bg-[#F8F9FD]">
                   <td className="px-5 py-3 font-semibold max-w-[220px]">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <ItemThumb item={i} size={30} className="shrink-0" />
-                      <span className="truncate">{i.name}</span>
-                    </div>
+                    <span className="truncate">{i.name}</span>
                   </td>
                   <td className="px-5 py-3">
                     <CategoryChip category={i.category} />
@@ -333,22 +325,6 @@ function InventoryPageInner() {
                       >
                         <ArrowDownCircle size={13} /> Out
                       </button>
-                      <button
-                        onClick={() => setBatchesItem(i)}
-                        title="View batches (FIFO)"
-                        className="w-7 h-7 rounded-full flex items-center justify-center"
-                        style={{ background: "#E7E9F3", color: "#6B7280" }}
-                      >
-                        <Layers size={13} />
-                      </button>
-                      <button
-                        onClick={() => setBarcodeItem(i)}
-                        title="Print barcode"
-                        className="w-7 h-7 rounded-full flex items-center justify-center"
-                        style={{ background: "#E7E9F3", color: "#6B7280" }}
-                      >
-                        <Barcode size={13} />
-                      </button>
                     </div>
                   </td>
                 </tr>
@@ -382,10 +358,6 @@ function InventoryPageInner() {
           onConfirm={(qty, reason, supplier, expiryDate) => logMovement(adjustItem.item, adjustItem.type, qty, reason, supplier, expiryDate)}
         />
       )}
-      {batchesItem && (
-        <BatchesModal item={batchesItem} supabase={supabase} activeShopId={activeShopId} onClose={() => setBatchesItem(null)} />
-      )}
-      {barcodeItem && <BarcodeModal item={barcodeItem} onClose={() => setBarcodeItem(null)} />}
       {editPriceItem && (
         <EditPriceModal
           item={editPriceItem}
