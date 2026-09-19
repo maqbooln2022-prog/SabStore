@@ -44,12 +44,21 @@ function DayClosePageInner() {
     load();
   }, [load]);
 
-  const todaysCashSales = useMemo(() => {
+  // Only bills actually paid in physical cash belong in the register —
+  // UPI/card/bank collections are non-credit too, but that money never
+  // touches the drawer, so counting it here would overstate expected cash.
+  const todaysNonCreditBills = useMemo(() => {
     const t = new Date().toDateString();
-    return bills
-      .filter((b) => new Date(b.date).toDateString() === t && b.payment_type !== "credit")
-      .reduce((s, b) => s + b.total, 0);
+    return bills.filter((b) => new Date(b.date).toDateString() === t && b.payment_type !== "credit");
   }, [bills]);
+  const todaysCashSales = useMemo(
+    () => todaysNonCreditBills.filter((b) => (b.payment_method || "cash") === "cash").reduce((s, b) => s + b.total, 0),
+    [todaysNonCreditBills]
+  );
+  const todaysDigitalSales = useMemo(
+    () => todaysNonCreditBills.filter((b) => (b.payment_method || "cash") !== "cash").reduce((s, b) => s + b.total, 0),
+    [todaysNonCreditBills]
+  );
 
   const todaysDrawList = useMemo(() => {
     const t = new Date().toDateString();
@@ -122,6 +131,12 @@ function DayClosePageInner() {
             <span className="text-[#6B7280] font-medium">Cash sales today (app)</span>
             <span className="ks-mono font-bold">{rupee(todaysCashSales)}</span>
           </div>
+          {todaysDigitalSales > 0 && (
+            <div className="flex items-center justify-between text-xs mb-2">
+              <span style={{ color: "var(--text-secondary)" }}>Digital sales today (UPI/Card/Bank — not in drawer)</span>
+              <span className="ks-mono">{rupee(todaysDigitalSales)}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between text-sm mb-3">
             <span className="text-[#6B7280] font-medium">Less: personal draws</span>
             <span className="ks-mono font-bold" style={{ color: "#C13F45" }}>

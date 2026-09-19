@@ -77,6 +77,11 @@ function HistoryPageInner() {
                         UDHAAR
                       </span>
                     )}
+                    {b.payment_type !== "credit" && b.payment_method && b.payment_method !== "cash" && (
+                      <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#EEF0FE", color: "#4F46E5" }}>
+                        {b.payment_method.toUpperCase()}
+                      </span>
+                    )}
                   </td>
                   <td className="px-5 py-3">{(b.items || []).length}</td>
                   <td className="px-5 py-3 ks-mono font-bold">{rupee(b.total)}</td>

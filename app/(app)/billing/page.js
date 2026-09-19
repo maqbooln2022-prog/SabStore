@@ -11,6 +11,10 @@ import {
   CheckCircle2,
   Loader2,
   ScanLine,
+  Banknote,
+  QrCode,
+  CreditCard,
+  Landmark,
 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import ItemThumb from "@/components/ItemThumb";
@@ -46,6 +50,7 @@ function BillingPageInner() {
   const [cart, setCart] = useState([]);
   const [customer, setCustomer] = useState({ name: "", phone: "" });
   const [billType, setBillType] = useState("cash");
+  const [paymentMethod, setPaymentMethod] = useState("cash");
   const [loyaltyDiscount, setLoyaltyDiscount] = useState(false);
   const [manualDiscount, setManualDiscount] = useState({ type: "pct", value: "" });
   const [lastBill, setLastBill] = useState(null);
@@ -265,6 +270,7 @@ function BillingPageInner() {
         discount_amount: discountAmount,
         total,
         payment_type: billType,
+        payment_method: billType === "credit" ? "cash" : paymentMethod,
         date: new Date().toISOString(),
       };
 
@@ -685,6 +691,32 @@ function BillingPageInner() {
               <p className="text-[11px] font-medium mb-2" style={{ color: "#C13F45" }}>Add a phone number for udhaar.</p>
             )}
 
+            {/* Payment method — only meaningful once money has actually changed hands */}
+            {billType === "cash" && (
+              <div className="grid grid-cols-4 gap-1.5 mb-3">
+                {[
+                  { id: "cash", label: "Cash", icon: Banknote },
+                  { id: "upi", label: "UPI", icon: QrCode },
+                  { id: "card", label: "Card", icon: CreditCard },
+                  { id: "bank", label: "Bank", icon: Landmark },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setPaymentMethod(m.id)}
+                    className="flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-semibold transition-colors"
+                    style={
+                      paymentMethod === m.id
+                        ? { background: "var(--accent-soft-bg)", color: "var(--accent-soft-text)", border: "1.5px solid var(--accent)" }
+                        : { background: "var(--bg-surface-alt)", color: "var(--text-secondary)", border: "1.5px solid transparent" }
+                    }
+                  >
+                    <m.icon size={15} />
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Generate Bill */}
             <button
               disabled={cart.length === 0 || generating}
@@ -728,7 +760,7 @@ function BillingPageInner() {
                     <MessageCircle size={13} /> WhatsApp
                   </button>
                 </div>
-                {activeShop?.upi_id && lastBill.payment_type !== "credit" && (
+                {activeShop?.upi_id && lastBill.payment_method === "upi" && (
                   <div className="mt-3">
                     <UpiQrCard upiId={activeShop.upi_id} payeeName={activeShop.name} amount={lastBill.total} note={lastBill.bill_no} />
                   </div>
