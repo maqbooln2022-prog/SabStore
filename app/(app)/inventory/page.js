@@ -13,7 +13,7 @@ import BatchesModal from "@/components/BatchesModal";
 import BarcodeModal from "@/components/BarcodeModal";
 import ScanBillModal from "@/components/ScanBillModal";
 import BulkImportModal from "@/components/BulkImportModal";
-import { reorderSuggestion, nextCode } from "@/lib/inventoryHelpers";
+import { nextCode } from "@/lib/inventoryHelpers";
 import { rupee } from "@/lib/format";
 import { fetchShopItems, flattenShopProduct } from "@/lib/products";
 import ModuleGuard from "@/components/ModuleGuard";
@@ -30,7 +30,6 @@ function InventoryPageInner() {
   const router = useRouter();
   const { supabase, activeShopId, showToast, runQueued } = useShop();
   const [items, setItems] = useState([]);
-  const [bills, setBills] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -56,13 +55,11 @@ function InventoryPageInner() {
   const load = useCallback(async () => {
     if (!activeShopId) return;
     setLoading(true);
-    const [itemsData, { data: billsData }, { data: shopSuppliersData }] = await Promise.all([
+    const [itemsData, { data: shopSuppliersData }] = await Promise.all([
       fetchShopItems(supabase, activeShopId),
-      supabase.from("bills").select("items, date").eq("shop_id", activeShopId),
       supabase.from("shop_suppliers").select("supplier:suppliers(*)").eq("shop_id", activeShopId),
     ]);
     setItems(itemsData);
-    setBills(billsData || []);
     setSuppliers((shopSuppliersData || []).map((r) => r.supplier));
     setLoading(false);
   }, [supabase, activeShopId]);
@@ -275,8 +272,13 @@ function InventoryPageInner() {
           </thead>
           <tbody>
             {filtered.map((i) => {
-              const low = i.stock <= i.low_at;
-              const suggestion = reorderSuggestion(i, bills);
+              const stockLevel =
+                i.stock <= i.low_at ? "low" : i.stock <= i.low_at * 3 ? "medium" : "good";
+              const stockMeta = {
+                low: { label: "LOW", text: "#C13F45", bg: "#FDEAEA" },
+                medium: { label: "MEDIUM", text: "#B5720B", bg: "#FFF4E0" },
+                good: { label: "IN STOCK", text: "#1F8A5F", bg: "#E4F5F0" },
+              }[stockLevel];
               return (
                 <tr key={i.id} className="border-b border-[#E7E9F3] last:border-0 hover:bg-[#F8F9FD]">
                   <td className="px-5 py-3 font-semibold max-w-[220px]">
@@ -300,20 +302,12 @@ function InventoryPageInner() {
                     {rupee(i.price)}
                   </td>
                   <td className="px-5 py-3">
-                    <span className={`ks-mono font-semibold ${low ? "text-[#C13F45]" : "text-[#000000]"}`}>
+                    <span className="ks-mono font-semibold" style={{ color: stockMeta.text }}>
                       {i.stock} {i.unit}
                     </span>
-                    {low && (
-                      <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: "#FDEAEA", color: "#C13F45" }}>
-                        LOW
-                      </span>
-                    )}
-                    {suggestion && suggestion.daysLeft <= 10 && (
-                      <div className="text-[11px] text-[#B5720B] font-medium mt-0.5">
-                        ⏳ ~{suggestion.daysLeft.toFixed(1)}d left · reorder {suggestion.suggestedQty}
-                        {i.unit}
-                      </div>
-                    )}
+                    <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: stockMeta.bg, color: stockMeta.text }}>
+                      {stockMeta.label}
+                    </span>
                   </td>
                   <td className="px-5 py-3">
                     <div className="flex gap-1.5">
