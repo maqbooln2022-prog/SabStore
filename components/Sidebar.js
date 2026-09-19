@@ -21,6 +21,7 @@ import {
   ChevronRight,
   ClipboardList,
   SlidersHorizontal,
+  FileBarChart2,
 } from "lucide-react";
 import { useShop } from "@/components/ShopContext";
 import ShopTypeIcon from "@/components/ShopTypeIcon";
@@ -39,6 +40,7 @@ const NAV_ITEMS = [
   { href: "/cashbook", key: "cashbook", label: "Cashbook", icon: BookOpen },
   { href: "/suppliers", key: "suppliers", label: "Suppliers", icon: Truck },
   { href: "/purchase-orders", key: "purchase_orders", label: "Purchase orders", icon: ClipboardList },
+  { href: "/reports", key: "reports", label: "Reports", icon: FileBarChart2 },
   // Gated on the same "inventory" permission as the main Inventory page —
   // batches (FIFO/expiry) and barcode printing are inventory-adjacent,
   // not a separate toggleable module.

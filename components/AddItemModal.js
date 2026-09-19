@@ -16,6 +16,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
     mrp: "",
     cost_price: "",
     gst: "",
+    hsn_code: "",
     stock: "1",
     low_at: "5",
     code: nextCode(items),
@@ -134,6 +135,7 @@ export default function AddItemModal({ items, onClose, onAdd }) {
         mrp: form.mrp !== "" ? Number(form.mrp) : null,
         cost_price: form.cost_price !== "" ? Number(form.cost_price) : null,
         gst: form.gst !== "" ? Number(form.gst) : null,
+        hsn_code: form.hsn_code.trim() || null,
         stock: Number(form.stock),
         low_at: Number(form.low_at) || 5,
       });
@@ -384,14 +386,24 @@ export default function AddItemModal({ items, onClose, onAdd }) {
               ))}
             </select>
           </Field>
-          <Field label="Opening stock">
-            <input type="number" className="ks-input" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
+          <Field label="HSN code (optional)">
+            <input
+              className="ks-input ks-mono"
+              value={form.hsn_code}
+              onChange={(e) => setForm({ ...form, hsn_code: e.target.value })}
+              placeholder="e.g. 1701"
+            />
           </Field>
         </div>
 
-        <Field label="Low stock alert at">
-          <input type="number" className="ks-input" value={form.low_at} onChange={(e) => setForm({ ...form, low_at: e.target.value })} />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Opening stock">
+            <input type="number" className="ks-input" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
+          </Field>
+          <Field label="Low stock alert at">
+            <input type="number" className="ks-input" value={form.low_at} onChange={(e) => setForm({ ...form, low_at: e.target.value })} />
+          </Field>
+        </div>
 
         {error && (
           <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
