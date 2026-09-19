@@ -717,6 +717,21 @@ function BillingPageInner() {
               </div>
             )}
 
+            {/* UPI QR at checkout — shown as soon as UPI is picked, using the
+                live cart total, so the customer can scan and pay while the
+                bill is being finalized instead of waiting for the receipt. */}
+            {billType === "cash" && paymentMethod === "upi" && total > 0 && (
+              <div className="mb-3">
+                {activeShop?.upi_id ? (
+                  <UpiQrCard upiId={activeShop.upi_id} payeeName={activeShop.name} amount={total} note="Checkout" />
+                ) : (
+                  <p className="text-[11px] font-medium text-center py-2" style={{ color: "#C13F45" }}>
+                    Add a UPI ID in Store settings to show a QR code here.
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Generate Bill */}
             <button
               disabled={cart.length === 0 || generating}
