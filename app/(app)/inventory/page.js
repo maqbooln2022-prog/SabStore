@@ -15,6 +15,18 @@ import { rupee } from "@/lib/format";
 import { fetchShopItems, flattenShopProduct } from "@/lib/products";
 import ModuleGuard from "@/components/ModuleGuard";
 
+function stockLevelOf(i) {
+  if (i.stock <= i.low_at) return "low";
+  if (i.stock <= i.low_at * 3) return "medium";
+  return "good";
+}
+const STOCK_RANK = { low: 0, medium: 1, good: 2 };
+const STOCK_META = {
+  low: { label: "LOW", text: "#C13F45", bg: "#FDEAEA" },
+  medium: { label: "MEDIUM", text: "#B5720B", bg: "#FFF4E0" },
+  good: { label: "IN STOCK", text: "#1F8A5F", bg: "#E4F5F0" },
+};
+
 export default function InventoryPage() {
   return (
     <ModuleGuard module="inventory">
@@ -63,9 +75,11 @@ function InventoryPageInner() {
     load();
   }, [load]);
 
-  const filtered = items.filter(
-    (i) => i.name.toLowerCase().includes(query.toLowerCase()) || i.code?.includes(query.trim())
-  );
+  // Low/medium stock always floats to the top, regardless of search —
+  // that's the whole point of the alert, it shouldn't require scrolling.
+  const filtered = items
+    .filter((i) => i.name.toLowerCase().includes(query.toLowerCase()) || i.code?.includes(query.trim()))
+    .sort((a, b) => STOCK_RANK[stockLevelOf(a)] - STOCK_RANK[stockLevelOf(b)]);
 
   // Profit insights: items with cost_price set, ranked by margin %
   const insightItems = items
@@ -267,13 +281,7 @@ function InventoryPageInner() {
           </thead>
           <tbody>
             {filtered.map((i) => {
-              const stockLevel =
-                i.stock <= i.low_at ? "low" : i.stock <= i.low_at * 3 ? "medium" : "good";
-              const stockMeta = {
-                low: { label: "LOW", text: "#C13F45", bg: "#FDEAEA" },
-                medium: { label: "MEDIUM", text: "#B5720B", bg: "#FFF4E0" },
-                good: { label: "IN STOCK", text: "#1F8A5F", bg: "#E4F5F0" },
-              }[stockLevel];
+              const stockMeta = STOCK_META[stockLevelOf(i)];
               return (
                 <tr key={i.id} className="border-b border-[#E7E9F3] last:border-0 hover:bg-[#F8F9FD]">
                   <td className="px-5 py-3 font-semibold max-w-[220px]">
