@@ -268,7 +268,7 @@ function InventoryPageInner() {
             <tr className="text-left ks-mono text-[11px] uppercase tracking-wide text-[#6B7280] border-b border-[#E7E9F3]">
               <th className="px-5 py-3 font-medium">Item</th>
               <th className="px-5 py-3 font-medium">Category</th>
-              <th className="px-5 py-3 font-medium">Price / Margin</th>
+              <th className="px-5 py-3 font-medium">Price</th>
               <th className="px-5 py-3 font-medium">Stock</th>
               <th className="px-5 py-3 font-medium">Actions</th>
             </tr>
@@ -276,7 +276,6 @@ function InventoryPageInner() {
           <tbody>
             {filtered.map((i) => {
               const low = i.stock <= i.low_at;
-              const margin = i.cost_price != null ? i.price - i.cost_price : null;
               const suggestion = reorderSuggestion(i, bills);
               return (
                 <tr key={i.id} className="border-b border-[#E7E9F3] last:border-0 hover:bg-[#F8F9FD]">
@@ -299,7 +298,6 @@ function InventoryPageInner() {
                       </div>
                     )}
                     {rupee(i.price)}
-                    {margin != null && <div className="text-[11px] text-[#4F46E5] font-semibold">+{rupee(margin)} margin</div>}
                   </td>
                   <td className="px-5 py-3">
                     <span className={`ks-mono font-semibold ${low ? "text-[#C13F45]" : "text-[#000000]"}`}>
